@@ -20,7 +20,7 @@ const HOURS = { Stunden: 1, Tage: 24, Monate: 730.5 };
 const ICONS = ["mdi:bell-outline", "mdi:wrench", "mdi:tools", "mdi:water", "mdi:pipe", "mdi:pump", "mdi:air-filter", "mdi:filter-outline", "mdi:fridge-outline", "mdi:washing-machine", "mdi:dishwasher", "mdi:stove", "mdi:broom", "mdi:trash-can-outline", "mdi:recycle", "mdi:leaf", "mdi:flower", "mdi:radiator", "mdi:thermometer", "mdi:snowflake", "mdi:smoke-detector-variant", "mdi:battery-alert", "mdi:lightbulb-outline", "mdi:home-roof", "mdi:garage", "mdi:car", "mdi:car-wrench", "mdi:key-outline", "mdi:paw", "mdi:medical-bag", "mdi:calendar-check", "mdi:shower"];
 const PRESETS = [
   { title: "Termin aus Kalender", name: "", icon: "mdi:calendar-clock", art: "kalender", filter: "" },
-  { name: "Außenwasser abdrehen und entlüften", icon: "mdi:snowflake-alert", art: "frost", label: "Termin nach Frostvorhersage" },
+  { title: "Termin nach Frostvorhersage", name: "", icon: "mdi:snowflake-alert", art: "frost" },
   { name: "Wasserfilter Kühlschrank", icon: "mdi:fridge-outline", n: 6, u: "Monate" },
   { name: "Rauchmelder testen", icon: "mdi:smoke-detector-variant", n: 12, u: "Monate" },
   { name: "Heizkörper entlüften", icon: "mdi:radiator", n: 12, u: "Monate" },
@@ -405,7 +405,7 @@ class ReminderCard extends HTMLElement {
       <div class="fld"><label>Frost ab (°C)</label><div class="pair"><input type="number" step="1" class="w-frostab" value="${w.frostab ?? -2}"></div><div class="hint">Sinkt der vorhergesagte Tiefstwert auf diese Temperatur oder darunter, wird der Termin auf diesen Tag gesetzt.</div></div>
       <div class="fld"><label>Vorhersage-Fenster (Tage)</label><div class="pair"><input type="number" min="1" max="7" class="w-frosttage" value="${w.frosttage ?? 3}"></div><div class="hint">So viele Tage im Voraus wird die Vorhersage geprüft.</div></div>
       <div class="fld"><label>Zurücksetzen im Frühjahr</label><select class="w-resetm">${[3, 4, 5].map((m) => `<option value="${m}"${Number(w.resetm ?? 4) === m ? " selected" : ""}>${months[m]}</option>`).join("")}</select><div class="hint">Am 1. dieses Monats beginnt die Erinnerung von vorn. Pro Winter wird einmal gemeldet.</div></div>
-      <div class="fld"><label><input type="checkbox" class="w-folge"${w.folge === false ? "" : " checked"}> Im Frühjahr erinnern</label><input type="text" class="w-folgename" value="${w.folgename || "Außenwasser wieder aufdrehen"}"><div class="hint">Legt eine zweite Erinnerung an, die zum Zurücksetzen fällig wird.</div></div>
+      <div class="fld"><label><input type="checkbox" class="w-folge"${w.folge ? " checked" : ""}> Im Frühjahr erinnern</label><input type="text" class="w-folgename" value="${w.folgename || ""}" placeholder="Name, z. B. Außenwasser wieder aufdrehen"><div class="hint">Legt eine zweite Erinnerung an, die zum Zurücksetzen fällig wird.</div></div>
       <div class="fld"><label>Frostalarm-Sensor (optional)</label><input type="text" class="w-alarm" value="${w.alarm || ""}" list="w-al" placeholder="binary_sensor.…"><datalist id="w-al">${al}</datalist><div class="hint">Löst den Termin zusätzlich aus, wenn der Sensor „an“ meldet und die Vorhersage keinen Frost zeigt. Vorher prüfen, ob der Sensor wirklich nur bei Frost „an“ meldet.</div></div>`;
   }
 
@@ -664,7 +664,7 @@ class ReminderCard extends HTMLElement {
       w.preset = t.value;
       if (p) {
         Object.assign(w, { name: p.name ?? "", icon: p.icon, art: p.art || "intervall", n: p.n, u: p.u });
-        if (p.art === "frost") Object.assign(w, { folge: true, folgename: "Außenwasser wieder aufdrehen", vl: 3 });
+        if (p.art === "frost") Object.assign(w, { folge: false, folgename: "" });
         if (p.art === "kalender") Object.assign(w, { filter: p.filter || "", vl: 1, vlu: "Tage", rep: 0, cal: w.cal || this._defaultCal() });
       }
       this._w = w;
