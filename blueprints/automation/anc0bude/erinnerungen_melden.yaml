@@ -9,7 +9,7 @@ blueprint:
     Mit `input_boolean.erinnerung_<id>_aktiv` lässt sich die Meldung einer Erinnerung ausschalten, mit
     `input_boolean.erinnerungen_aktiv` alle Meldungen (fehlt ein Schalter, gilt „an“). Die Fälligkeit wird dabei
     weiter berechnet, nur die Meldung entfällt, und nach dem Wiedereinschalten wird sie nachgeholt.
-    Eine Fälligkeit im Jahr 2099 bedeutet „kein Termin“. Die Prüfung läuft alle 15 Minuten. Erinnerungen mit Vorlauf in
+    Eine Fälligkeit im Jahr 2099 bedeutet „kein Termin“. Die Prüfung läuft jede Minute. Erinnerungen mit Vorlauf in
     Tagen oder Monaten werden erst ab der gewählten Uhrzeit gemeldet, Erinnerungen mit Vorlauf in Stunden sofort.
     Für Müll und andere Erinnerungen mit eigener Uhrzeit: Blueprint ein zweites Mal verwenden und mit
     „nur diese IDs“ beziehungsweise „diese IDs auslassen“ aufteilen.
@@ -115,7 +115,7 @@ variables:
 
 triggers:
   - trigger: time_pattern
-    minutes: "/15"
+    minutes: "/1"
 
 conditions:
   - condition: template
