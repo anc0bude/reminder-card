@@ -6,6 +6,10 @@ blueprint:
     (Einheit Stunden, Tage oder Monate je Erinnerung), dann am Fälligkeitstermin und danach alle `Wiederholung` Tage
     (0 = nur die erste Meldung). Vorlauf, Einheit und Wiederholung stehen je Erinnerung in
     `input_number.erinnerung_<id>_vorlauf`, `input_select.erinnerung_<id>_vorlauf_einheit` und `_wiederholung`.
+    Jede Erinnerung kann eigene Geräte (`input_text.erinnerung_<id>_geraete`) und eine eigene Meldezeit
+    (`input_text.erinnerung_<id>_meldezeit`) haben, sonst gelten die Standardwerte dieses Blueprints.
+    Der „Erledigt“-Knopf in der Meldung erscheint automatisch nur dort, wo er etwas bewirkt (Intervall, Saison oder
+    Wiederholung größer als 0).
     Mit `input_boolean.erinnerung_<id>_aktiv` lässt sich die Meldung einer Erinnerung ausschalten, mit
     `input_boolean.erinnerungen_aktiv` alle Meldungen (fehlt ein Schalter, gilt „an“). Die Fälligkeit wird dabei
     weiter berechnet, nur die Meldung entfällt, und nach dem Wiedereinschalten wird sie nachgeholt.
@@ -18,14 +22,19 @@ blueprint:
   source_url: https://github.com/anc0bude/reminder-card/blob/main/blueprints/automation/anc0bude/erinnerungen_melden.yaml
   input:
     uhrzeit:
-      name: Früheste Uhrzeit für Meldungen
-      description: Für Erinnerungen, deren Vorlauf in Tagen oder Monaten angegeben ist.
+      name: Standard-Uhrzeit für Meldungen
+      description: >-
+        Früheste Uhrzeit für Erinnerungen, deren Vorlauf in Tagen oder Monaten angegeben ist. Jede Erinnerung kann mit
+        `input_text.erinnerung_<id>_meldezeit` (Format HH:MM) eine eigene Uhrzeit haben.
       selector:
         time: {}
       default: "08:00:00"
     geraete:
-      name: Geräte
-      description: Namen der Notify-Dienste der Companion-App ohne `notify.`, zum Beispiel `mobile_app_mein_handy`.
+      name: Standard-Geräte
+      description: >-
+        Namen der Notify-Dienste der Companion-App ohne `notify.`, zum Beispiel `mobile_app_mein_handy`. Diese Geräte
+        bekommen die Meldung, wenn bei einer Erinnerung keine eigenen Geräte eingestellt sind
+        (`input_text.erinnerung_<id>_geraete`, Namen ohne `mobile_app_`, durch Komma getrennt).
       selector:
         select:
           multiple: true
@@ -33,7 +42,10 @@ blueprint:
           options: []
       default: []
     erledigt_knopf:
-      name: „Erledigt“-Knopf in der Meldung
+      name: „Erledigt“-Knopf (veraltet, wird ignoriert)
+      description: >-
+        Wird nicht mehr ausgewertet. Der Knopf erscheint automatisch dort, wo er etwas bewirkt: bei Erinnerungen mit
+        Intervall, bei saisonalen Erinnerungen und bei allen anderen, wenn eine Wiederholung eingestellt ist.
       selector:
         boolean: {}
       default: true
@@ -66,7 +78,6 @@ max_exceeded: silent
 
 variables:
   devices: !input geraete
-  erledigt_knopf: !input erledigt_knopf
   tippen_pfad: !input tippen_pfad
   inc: !input ids_einschliessen
   exc: !input ids_auslassen
@@ -85,12 +96,20 @@ variables:
         {% set vl_s = (states('input_number.erinnerung_' ~ rid ~ '_vorlauf') | float(7)) * mult.get(unit, 24) * 3600 %}
         {% set rep = states('input_number.erinnerung_' ~ rid ~ '_wiederholung') | float(0) %}
         {% set gm = as_timestamp(states('input_datetime.erinnerung_' ~ rid ~ '_gemeldet'), 0) %}
+        {% set gtxt = states('input_text.erinnerung_' ~ rid ~ '_geraete') %}
+        {% set own = (gtxt.split(',') | map('trim') | reject('equalto', '') | map('regex_replace', '^', 'mobile_app_') | list) if gtxt not in ['unknown', 'unavailable', ''] else [] %}
+        {% set devs = own if own | length > 0 else devices %}
+        {% set mz = states('input_text.erinnerung_' ~ rid ~ '_meldezeit') %}
+        {% set mzt = (mz ~ ':00') if (mz | length == 5 and mz[2] == ':') else uhr %}
+        {% set has_iv = states('input_number.erinnerung_' ~ rid ~ '_intervall') not in ['unknown', 'unavailable'] %}
+        {% set art = states('input_select.erinnerung_' ~ rid ~ '_art') %}
+        {% set knopf = has_iv or art == 'Saison' or rep > 0 %}
         {% set start = ft - vl_s %}
         {% set first = gm < start %}
         {% set dueday = rep > 0 and nowt >= ft and gm < ft %}
         {% set repeat = rep > 0 and nowt >= ft and (nowt - gm) >= rep * 86400 %}
-        {% set day_ok = unit == 'Stunden' or clock >= uhr %}
-        {% if nowt >= start and day_ok and (first or dueday or repeat) %}
+        {% set day_ok = unit == 'Stunden' or clock >= mzt %}
+        {% if nowt >= start and day_ok and devs | length > 0 and (first or dueday or repeat) %}
           {% set date_only = s.state[11:16] == '00:00' %}
           {% set hrs = (ft - nowt) / 3600 %}
           {% set days = ((ft - midnight) / 86400) | round(0) | int %}
@@ -107,7 +126,7 @@ variables:
             {% set d = (hrs / 24) | abs | round(0) | int %}
             {% set msg = ('fällig in ' ~ d ~ ' Tagen (' ~ when ~ ')') if hrs >= 0 else ('seit ' ~ d ~ ' Tagen überfällig (' ~ when ~ ')') %}
           {% endif %}
-          {% set ns.l = ns.l + [{'id': rid, 'name': s.name, 'msg': msg}] %}
+          {% set ns.l = ns.l + [{'id': rid, 'name': s.name, 'msg': msg, 'devs': devs, 'knopf': knopf}] %}
         {% endif %}
       {% endif %}
     {% endfor %}
@@ -119,7 +138,7 @@ triggers:
 
 conditions:
   - condition: template
-    value_template: "{{ devices | length > 0 and due | length > 0 and states('input_boolean.erinnerungen_aktiv') != 'off' }}"
+    value_template: "{{ due | length > 0 and states('input_boolean.erinnerungen_aktiv') != 'off' }}"
 
 actions:
   - repeat:
@@ -128,7 +147,7 @@ actions:
         - variables:
             item: "{{ repeat.item }}"
         - repeat:
-            for_each: "{{ devices }}"
+            for_each: "{{ item.devs }}"
             sequence:
               - action: "{{ 'notify.' ~ repeat.item }}"
                 continue_on_error: true
@@ -138,7 +157,7 @@ actions:
                   data:
                     tag: "{{ 'erinnerung_' ~ item.id }}"
                     group: erinnerungen
-                    actions: "{{ [{'action': 'ERL_' ~ item.id, 'title': 'Erledigt'}] if erledigt_knopf else [] }}"
+                    actions: "{{ [{'action': 'ERL_' ~ item.id, 'title': 'Erledigt'}] if item.knopf else [] }}"
                     clickAction: "{{ tippen_pfad }}"
                     url: "{{ tippen_pfad }}"
         - action: input_datetime.set_datetime

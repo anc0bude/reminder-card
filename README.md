@@ -14,7 +14,9 @@ Reminders for Home Assistant: a dashboard card that lists recurring tasks by due
 - **Intervall und Vorlauf in Stunden, Tagen oder Monaten.**
 - **Vier Arten von Terminen:** wiederkehrend (alle N …), aus einem Sensor (verbleibende Stunden), aus einem Kalender (mit Titel-Filter, zum Beispiel Müllabfuhr je Tonne) und „Termin nach Frostvorhersage“ (zum Beispiel Außenwasser vor dem ersten Frost). Grenze, Vorhersage-Fenster und Frühjahrstermin lassen sich in der Karte ändern, ein Frostalarm-Sensor kann optional zusätzlich auslösen.
 - **Assistent in der Karte:** „+“ legt eine Erinnerung an (mit Vorlagen, darunter „Termin aus Kalender“ und „Termin nach Frostvorhersage“), „Meldungen einrichten“ legt die Automationen an, im Zahnrad lässt sich eine Erinnerung löschen. Dafür braucht der Nutzer Administratorrechte.
-- **Meldungen** an alle Geräte der Companion-App, mit „Erledigt“-Knopf direkt in der Meldung.
+- **Meldungen** an die Geräte der Companion-App, mit „Erledigt“-Knopf direkt in der Meldung. Der Knopf erscheint automatisch nur dort, wo er etwas bewirkt (bei Intervall, Saison oder eingestellter Wiederholung), nicht zum Beispiel bei der Müllabfuhr. Standard ist **08:00 Uhr am Vortag** auf allen Geräten. Pro Erinnerung lassen sich unter „Erweitert“ Vorlauf, Meldezeit, Wiederholung und die Geräte ändern.
+- **Konfiguration** unten in der Karte (Pfeil rechts): Standard-Geräte und Standard-Meldezeit, Test-Meldung und der **Kalender-Import**.
+- **Kalender-Import:** Termine aus einer ICS-Datei zu einem beschreibbaren Kalender hinzufügen oder einen neuen lokalen Kalender anlegen. Termine, die schon vorhanden sind oder doppelt in der Datei stehen, werden nicht doppelt angelegt. Termine mit Wiederholungsregel werden nicht übernommen.
 
 ## Installation
 
@@ -48,6 +50,7 @@ Jede Erinnerung besteht aus Hilfsgrößen mit dem Namensmuster `erinnerung_<id>_
 | `input_datetime.erinnerung_<id>_faellig` | nächster Termin (Datum und Uhrzeit), der Name ist der Anzeigename |
 | `…_zuletzt`, `…_intervall`, `…_intervall_einheit` | nur bei „wiederkehrend“ |
 | `…_vorlauf`, `…_vorlauf_einheit`, `…_wiederholung` | wann gemeldet wird |
+| `input_text.erinnerung_<id>_geraete`, `…_meldezeit` | eigene Geräte (ohne `mobile_app_`, durch Komma getrennt, leer = alle) und eigene Meldezeit (HH:MM, leer = Standard) |
 | `…_gemeldet` | wann zuletzt gemeldet wurde |
 | `input_boolean.erinnerung_<id>_aktiv` | Meldung an oder aus (das Symbol der Erinnerung hängt hier) |
 | `input_select.erinnerung_<id>_art` | Wiederkehrend, Sensor, Kalender oder Saison |
