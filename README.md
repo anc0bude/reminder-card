@@ -13,7 +13,7 @@ Reminders for Home Assistant: a dashboard card that lists recurring tasks by due
 - **Karte** mit Status (ok, bald fällig, überfällig), Erledigt-Knopf, Einstellungen je Erinnerung und einem Schalter für die Meldung. Der Schalter schaltet nur die Meldung aus, die Fälligkeit wird weiter berechnet.
 - **Intervall und Vorlauf in Stunden, Tagen oder Monaten.**
 - **Vier Arten von Terminen:** wiederkehrend (alle N …), aus einem Sensor (verbleibende Stunden), aus einem Kalender (mit Titel-Filter, zum Beispiel Müllabfuhr je Tonne) und „Termin nach Frostvorhersage“ (zum Beispiel Außenwasser vor dem ersten Frost). Grenze, Vorhersage-Fenster und Frühjahrstermin lassen sich in der Karte ändern, ein Frostalarm-Sensor kann optional zusätzlich auslösen.
-- **Assistent in der Karte:** „+“ legt eine Erinnerung an (mit Vorlagen, zum Beispiel „Biomüll“ aus einem Müllkalender als „Termin aus Kalender“), „Meldungen einrichten“ legt die Automationen an, im Zahnrad lässt sich eine Erinnerung löschen. Dafür braucht der Nutzer Administratorrechte.
+- **Assistent in der Karte:** „+“ legt eine Erinnerung an (mit Vorlagen, darunter „Termin aus Kalender“ und „Termin nach Frostvorhersage“), „Meldungen einrichten“ legt die Automationen an, im Zahnrad lässt sich eine Erinnerung löschen. Dafür braucht der Nutzer Administratorrechte.
 - **Meldungen** an alle Geräte der Companion-App, mit „Erledigt“-Knopf direkt in der Meldung.
 
 ## Installation

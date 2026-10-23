@@ -19,7 +19,7 @@ const NO_DATE_YEAR = 2099; // Fälligkeit "kein Termin"
 const HOURS = { Stunden: 1, Tage: 24, Monate: 730.5 };
 const ICONS = ["mdi:bell-outline", "mdi:wrench", "mdi:tools", "mdi:water", "mdi:pipe", "mdi:pump", "mdi:air-filter", "mdi:filter-outline", "mdi:fridge-outline", "mdi:washing-machine", "mdi:dishwasher", "mdi:stove", "mdi:broom", "mdi:trash-can-outline", "mdi:recycle", "mdi:leaf", "mdi:flower", "mdi:radiator", "mdi:thermometer", "mdi:snowflake", "mdi:smoke-detector-variant", "mdi:battery-alert", "mdi:lightbulb-outline", "mdi:home-roof", "mdi:garage", "mdi:car", "mdi:car-wrench", "mdi:key-outline", "mdi:paw", "mdi:medical-bag", "mdi:calendar-check", "mdi:shower"];
 const PRESETS = [
-  { name: "Biomüll", icon: "mdi:leaf", art: "kalender", filter: "Bioabfall", label: "Termin aus Kalender" },
+  { title: "Termin aus Kalender", name: "", icon: "mdi:calendar-clock", art: "kalender", filter: "" },
   { name: "Außenwasser abdrehen und entlüften", icon: "mdi:snowflake-alert", art: "frost", label: "Termin nach Frostvorhersage" },
   { name: "Wasserfilter Kühlschrank", icon: "mdi:fridge-outline", n: 6, u: "Monate" },
   { name: "Rauchmelder testen", icon: "mdi:smoke-detector-variant", n: 12, u: "Monate" },
@@ -364,7 +364,7 @@ class ReminderCard extends HTMLElement {
         <div class="btns"><button class="done" data-act="setup-go" ${w.busy ? "disabled" : ""}>Einrichten</button><button data-act="wiz-close">Abbrechen</button></div></div>`;
       return;
     }
-    const pre = PRESETS.map((p, i) => `<option value="${i}"${w.preset === String(i) ? " selected" : ""}>${p.name} (${p.label || `${p.n} ${p.u}`})</option>`).join("");
+    const pre = PRESETS.map((p, i) => `<option value="${i}"${w.preset === String(i) ? " selected" : ""}>${p.title || `${p.name} (${p.label || `${p.n} ${p.u}`})`}</option>`).join("");
     const units = (sel) => Object.keys(HOURS).map((o) => `<option${o === sel ? " selected" : ""}>${o}</option>`).join("");
     const sensors = Object.entries(this._hass.states).filter(([e]) => e.startsWith("sensor.")).map(([e]) => `<option value="${e}">`).join("");
     const cals = Object.keys(this._hass.states).filter((e) => e.startsWith("calendar.")).map((e) => `<option value="${e}">`).join("");
@@ -663,9 +663,9 @@ class ReminderCard extends HTMLElement {
       const p = PRESETS[Number(t.value)];
       w.preset = t.value;
       if (p) {
-        Object.assign(w, { name: p.name, icon: p.icon, art: p.art || "intervall", n: p.n, u: p.u });
+        Object.assign(w, { name: p.name ?? "", icon: p.icon, art: p.art || "intervall", n: p.n, u: p.u });
         if (p.art === "frost") Object.assign(w, { folge: true, folgename: "Außenwasser wieder aufdrehen", vl: 3 });
-        if (p.art === "kalender") Object.assign(w, { filter: p.filter, vl: 1, vlu: "Tage", rep: 0, cal: w.cal || this._defaultCal() });
+        if (p.art === "kalender") Object.assign(w, { filter: p.filter || "", vl: 1, vlu: "Tage", rep: 0, cal: w.cal || this._defaultCal() });
       }
       this._w = w;
       this._renderWiz();
