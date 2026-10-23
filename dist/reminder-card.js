@@ -17,6 +17,7 @@
  */
 const NO_DATE_YEAR = 2099; // Fälligkeit "kein Termin"
 const HOURS = { Stunden: 1, Tage: 24, Monate: 730.5 };
+const ICONS = ["mdi:bell-outline", "mdi:wrench", "mdi:tools", "mdi:water", "mdi:pipe", "mdi:pump", "mdi:air-filter", "mdi:filter-outline", "mdi:fridge-outline", "mdi:washing-machine", "mdi:dishwasher", "mdi:stove", "mdi:broom", "mdi:trash-can-outline", "mdi:recycle", "mdi:leaf", "mdi:flower", "mdi:radiator", "mdi:thermometer", "mdi:snowflake", "mdi:smoke-detector-variant", "mdi:battery-alert", "mdi:lightbulb-outline", "mdi:home-roof", "mdi:garage", "mdi:car", "mdi:car-wrench", "mdi:key-outline", "mdi:paw", "mdi:medical-bag", "mdi:calendar-check", "mdi:shower"];
 const PRESETS = [
   { name: "Wasserfilter Kühlschrank", icon: "mdi:fridge-outline", n: 6, u: "Monate" },
   { name: "Rauchmelder testen", icon: "mdi:smoke-detector-variant", n: 12, u: "Monate" },
@@ -82,6 +83,13 @@ class ReminderCard extends HTMLElement {
           .info{font-size:.85em;color:var(--secondary-text-color);background:var(--secondary-background-color);border-radius:8px;padding:8px 10px}
           .sw{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65em;color:var(--secondary-text-color)}
           .head button.ic{padding:4px 6px}
+          .ipr{display:flex;align-items:center;gap:10px}
+          .ipr .prev{--mdc-icon-size:30px;color:var(--primary-color);flex:none}
+          .ipw input{width:100%;max-width:320px}
+          .ip{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;max-width:420px}
+          .ip button{padding:5px;border-radius:8px;background:transparent;line-height:0}
+          .ip button.sel{border-color:var(--primary-color);background:var(--secondary-background-color);color:var(--primary-color)}
+          .ip ha-icon{--mdc-icon-size:22px}
           .panel{padding:8px 16px 14px;border-top:1px solid var(--divider-color);display:flex;flex-direction:column;gap:12px}
           .panel input,.panel select{box-sizing:border-box;padding:7px 8px;border-radius:8px;border:1px solid var(--divider-color);background:var(--secondary-background-color);color:var(--primary-text-color);font:inherit;min-width:0}
           .panel input[type=text],.panel input[type=time],.panel input[type=datetime-local],.panel select.w-preset,.panel select.w-art{width:100%;max-width:420px}
@@ -105,6 +113,7 @@ class ReminderCard extends HTMLElement {
     this.querySelector(".list").addEventListener("change", (e) => this._change(e));
     this.querySelector(".master").addEventListener("change", (e) => this._toggle(e.target));
     this.querySelector(".wiz").addEventListener("click", (e) => this._click(e));
+    for (const sel of [".list", ".wiz"]) this.querySelector(sel).addEventListener("input", (e) => this._preview(e));
     this.querySelector(".wiz").addEventListener("change", (e) => this._wizChange(e));
     this.querySelector(".head").addEventListener("click", (e) => this._click(e));
   }
@@ -221,6 +230,19 @@ class ReminderCard extends HTMLElement {
     return `<div class="pair"><input type="number" min="0" max="${max}" step="1" value="${n}" data-set="input_number.${numKey}" data-id="${r.id}">${sel}</div>`;
   }
 
+  _iconPicker(value, attrs) {
+    return `<div class="ipw"><div class="ipr"><ha-icon class="prev" icon="${value || "mdi:help-circle-outline"}"></ha-icon><input type="text" value="${value || ""}" placeholder="mdi:…" ${attrs}></div>
+      <div class="ip">${ICONS.map((i) => `<button type="button" class="${i === value ? "sel" : ""}" data-pick="${i}" title="${i}"><ha-icon icon="${i}"></ha-icon></button>`).join("")}</div></div>`;
+  }
+
+  _preview(e) {
+    const w = e.target.closest?.(".ipw");
+    if (!w || e.target.tagName !== "INPUT") return;
+    const v = e.target.value.trim();
+    w.querySelector(".prev")?.setAttribute("icon", v || "mdi:help-circle-outline");
+    w.querySelectorAll(".ip button").forEach((x) => x.classList.toggle("sel", x.dataset.pick === v));
+  }
+
   _fld(label, control, hint) {
     return control ? `<div class="fld"><label>${label}</label>${control}${hint ? `<div class="hint">${hint}</div>` : ""}</div>` : "";
   }
@@ -257,7 +279,7 @@ class ReminderCard extends HTMLElement {
     const allgemein = this._admin() && !this._config.reminders?.length
       ? `<div class="grp"><div class="gt">Allgemein</div>
           ${this._fld("Anzeigename", `<input type="text" value="${String(r.name).replace(/"/g, "&quot;")}" data-ren="name" data-id="${r.id}">`, "So heißt die Erinnerung in der Karte und in der Meldung.")}
-          ${this._fld("Symbol", `<input type="text" value="${r.icon || ""}" list="rc-icons" data-ren="icon" data-id="${r.id}"><datalist id="rc-icons">${["mdi:bell-outline", "mdi:wrench", "mdi:water", "mdi:air-filter", "mdi:fridge-outline", "mdi:broom", "mdi:home-outline", "mdi:car", "mdi:flower"].map((i) => `<option value="${i}">`).join("")}</datalist>`, "Name eines Material-Design-Symbols, zum Beispiel mdi:wrench.")}
+          ${this._fld("Symbol", this._iconPicker(r.icon, `data-ren="icon" data-id="${r.id}"`), "Symbol anklicken oder den Namen eines Material-Design-Symbols eintippen, zum Beispiel mdi:wrench.")}
         </div>` : "";
     return `<div class="edit">
       ${allgemein}
@@ -329,7 +351,7 @@ class ReminderCard extends HTMLElement {
     box.innerHTML = `<div class="panel"><div class="gt">Neue Erinnerung</div>
       <div class="fld"><label>Vorlage</label><select class="w-preset"><option value="">Eigene Erinnerung</option>${pre}</select><div class="hint">Eine Vorlage füllt Name, Symbol und Intervall vor. Du kannst alles ändern.</div></div>
       <div class="fld"><label>Name</label><input type="text" class="w-name" value="${w.name || ""}" placeholder="z. B. Wasserfilter Kühlschrank"></div>
-      <div class="fld"><label>Symbol</label><input type="text" class="w-icon" value="${w.icon || "mdi:bell-outline"}" list="w-icons"><datalist id="w-icons">${["mdi:bell-outline", "mdi:wrench", "mdi:water", "mdi:air-filter", "mdi:fridge-outline", "mdi:broom", "mdi:home-outline", "mdi:car", "mdi:flower"].map((i) => `<option value="${i}">`).join("")}</datalist><div class="hint">Name eines Material-Design-Symbols, zum Beispiel mdi:wrench.</div></div>
+      <div class="fld"><label>Symbol</label>${this._iconPicker(w.icon || "mdi:bell-outline", 'class="w-icon"')}<div class="hint">Symbol anklicken oder den Namen eines Material-Design-Symbols eintippen.</div></div>
       <div class="fld"><label>Woher kommt der Termin?</label><select class="w-art">
         <option value="intervall"${w.art === "intervall" ? " selected" : ""}>Wiederkehrend (alle … Stunden, Tage oder Monate)</option>
         <option value="sensor"${w.art === "sensor" ? " selected" : ""}>Aus einem Sensor (Stunden bis zum Wechsel)</option>
@@ -577,6 +599,17 @@ class ReminderCard extends HTMLElement {
   }
 
   _click(e) {
+    const pick = e.target.closest("button[data-pick]");
+    if (pick) {
+      const input = pick.closest(".ipw")?.querySelector("input");
+      if (input) {
+        input.value = pick.dataset.pick;
+        pick.closest(".ipw").querySelector(".prev")?.setAttribute("icon", pick.dataset.pick);
+        pick.closest(".ip").querySelectorAll("button").forEach((x) => x.classList.toggle("sel", x === pick));
+        if (input.dataset.ren) this._rename(input);
+      }
+      return;
+    }
     const b = e.target.closest("button[data-act]");
     if (!b) return;
     const act = b.dataset.act;
