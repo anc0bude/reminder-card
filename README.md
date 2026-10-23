@@ -12,7 +12,7 @@ Reminders for Home Assistant: a dashboard card that lists recurring tasks by due
 
 - **Karte** mit Status (ok, bald fällig, überfällig), Erledigt-Knopf, Einstellungen je Erinnerung und einem Schalter für die Meldung. Der Schalter schaltet nur die Meldung aus, die Fälligkeit wird weiter berechnet.
 - **Intervall und Vorlauf in Stunden, Tagen oder Monaten.**
-- **Vier Arten von Terminen:** wiederkehrend (alle N …), aus einem Sensor (verbleibende Stunden), aus einem Kalender (mit Titel-Filter, zum Beispiel Müllabfuhr je Tonne) und saisonal (zum Beispiel vor dem ersten Frost).
+- **Vier Arten von Terminen:** wiederkehrend (alle N …), aus einem Sensor (verbleibende Stunden), aus einem Kalender (mit Titel-Filter, zum Beispiel Müllabfuhr je Tonne) und „Termin nach Frostvorhersage“ (zum Beispiel Außenwasser vor dem ersten Frost). Grenze, Vorhersage-Fenster und Frühjahrstermin lassen sich in der Karte ändern, ein Frostalarm-Sensor kann optional zusätzlich auslösen.
 - **Assistent in der Karte:** „+“ legt eine Erinnerung an (mit Vorlagen), „Meldungen einrichten“ legt die Automationen an, im Zahnrad lässt sich eine Erinnerung löschen. Dafür braucht der Nutzer Administratorrechte.
 - **Meldungen** an alle Geräte der Companion-App, mit „Erledigt“-Knopf direkt in der Meldung.
 
@@ -22,7 +22,7 @@ Reminders for Home Assistant: a dashboard card that lists recurring tasks by due
 2. **Blueprints importieren** (HACS installiert keine Blueprints). Einstellungen → Automatisierungen → Blueprints → Blueprint importieren, jeweils die URL einfügen:
    - `https://github.com/anc0bude/reminder-card/blob/main/blueprints/automation/anc0bude/erinnerungen_melden.yaml`
    - `https://github.com/anc0bude/reminder-card/blob/main/blueprints/automation/anc0bude/erinnerung_erledigt.yaml`
-   - für Termine aus Sensor, Kalender oder Wetter: `erinnerung_sensor.yaml`, `erinnerung_kalender.yaml`, `erinnerung_frost.yaml` im selben Ordner.
+   - für Termine aus Sensor, Kalender oder Frostvorhersage: `erinnerung_sensor.yaml`, `erinnerung_kalender.yaml`, `erinnerung_frost.yaml` im selben Ordner.
 3. Karte ins Dashboard: `type: custom:reminder-card`. Ohne weitere Angaben findet sie alle Erinnerungen selbst.
 4. Auf „Jetzt einrichten“ klicken (erscheint, solange die Melde-Automation fehlt), danach „+“ für die erste Erinnerung.
 

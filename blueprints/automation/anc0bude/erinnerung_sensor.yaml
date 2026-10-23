@@ -1,5 +1,5 @@
 blueprint:
-  name: Erinnerung aus Sensor (Stunden bis zum Wechsel)
+  name: Termin aus Sensor (Stunden bis zum Wechsel)
   description: >-
     Berechnet die Fälligkeit einer Erinnerung aus einem Sensor, der die verbleibenden Stunden meldet, zum Beispiel
     „Filter replace“ einer Lüftung. Fälligkeit = jetzt + Stunden (Datum und Uhrzeit). Springt der Wert nach einem Wechsel nach oben,

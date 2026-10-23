@@ -1,5 +1,5 @@
 blueprint:
-  name: Erinnerung aus Kalender
+  name: Termin aus Kalender
   description: >-
     Setzt die Fälligkeit einer Erinnerung auf den nächsten Termin eines Kalenders, zum Beispiel für die Müllabfuhr.
     Optional nur Termine mit bestimmtem Titel (zum Beispiel `Bioabfall`, `Papier`). Ohne Termin im Suchzeitraum wird „kein Termin“ (31.12.2099 00:00) gesetzt.

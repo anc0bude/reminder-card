@@ -1,9 +1,12 @@
 blueprint:
-  name: Erinnerung vor Frost (Außenwasser)
+  name: Termin nach Frostvorhersage
   description: >-
-    Setzt die Fälligkeit einer Erinnerung auf den ersten Frosttag der Vorhersage, einmal pro Winter, zum Beispiel
-    „Außenwasser abdrehen und entlüften“. Zum Frühjahrstermin wird die Erinnerung zurückgesetzt und optional eine
-    zweite Erinnerung („wieder aufdrehen“) fällig gestellt.
+    Setzt die Fälligkeit einer Erinnerung auf den ersten Frosttag der Wettervorhersage, einmal pro Winter, zum
+    Beispiel „Außenwasser abdrehen und entlüften“. Die Grenzwerte (Frost ab, Vorhersage-Fenster, Zurücksetzen im
+    Frühjahr) stehen in Hilfsgrößen `input_number`, damit sie in der reminder-card änderbar sind. Optional löst auch
+    ein Frostalarm-Sensor (zum Beispiel einer Wetterstation) den Termin aus, wenn die Vorhersage keinen Frost zeigt.
+    Zum Frühjahrstermin wird die Erinnerung zurückgesetzt und optional eine zweite Erinnerung („wieder aufdrehen“)
+    fällig gestellt.
   domain: automation
   author: anc0bude
   source_url: https://github.com/anc0bude/reminder-card/blob/main/blueprints/automation/anc0bude/erinnerung_frost.yaml
@@ -24,37 +27,35 @@ blueprint:
         entity:
           domain: input_datetime
     frost_ab:
-      name: Frost ab (°C)
-      description: Tiefstwert der Vorhersage, bei dem gewarnt wird.
+      name: Helfer „Frost ab (°C)“
+      description: Zahl-Helfer (`input_number`) mit dem Tiefstwert der Vorhersage, bei dem gewarnt wird.
       selector:
-        number:
-          min: -15
-          max: 5
-          step: 1
-          mode: box
-          unit_of_measurement: °C
-      default: -2
+        entity:
+          domain: input_number
     tage:
-      name: Vorhersage-Fenster (Tage)
+      name: Helfer „Vorhersage-Fenster (Tage)“
       selector:
-        number:
-          min: 1
-          max: 7
-          mode: box
-      default: 3
+        entity:
+          domain: input_number
     reset_monat:
-      name: Zurücksetzen im Monat
+      name: Helfer „Zurücksetzen im Monat“
       selector:
-        number:
-          min: 1
-          max: 12
-          mode: box
-      default: 4
+        entity:
+          domain: input_number
     faellig_fruehjahr:
       name: Helfer „Fällig am“ für „wieder aufdrehen“ (optional)
       selector:
         entity:
           domain: input_datetime
+      default: ""
+    frostalarm:
+      name: Frostalarm-Sensor (optional)
+      description: >-
+        Binärsensor, der „an“ meldet, wenn es friert, zum Beispiel der Frostalarm einer Wetterstation. Ist er an und
+        zeigt die Vorhersage keinen Frost, wird der Termin auf heute gesetzt. Leer = nur die Vorhersage zählt.
+      selector:
+        entity:
+          domain: binary_sensor
       default: ""
 
 mode: single
@@ -63,10 +64,14 @@ variables:
   wetter: !input wetter
   faellig: !input faellig
   gemeldet: !input gemeldet
-  frost_ab: !input frost_ab
-  tage: !input tage
-  reset_monat: !input reset_monat
+  h_frost: !input frost_ab
+  h_tage: !input tage
+  h_reset: !input reset_monat
   fruehjahr: !input faellig_fruehjahr
+  alarm: !input frostalarm
+  frost_ab: "{{ states(h_frost) | float(-2) }}"
+  tage: "{{ states(h_tage) | int(3) }}"
+  reset_monat: "{{ states(h_reset) | int(4) }}"
   wintermonate: "{{ (range(10, 13) | list) + (range(1, reset_monat | int(4)) | list) }}"
 
 triggers:
@@ -74,6 +79,8 @@ triggers:
     at: "06:00:00"
   - trigger: time
     at: "18:00:00"
+  - trigger: template
+    value_template: "{{ alarm | string | length > 0 and is_state(alarm, 'on') }}"
 
 actions:
   - choose:
@@ -101,7 +108,7 @@ actions:
                   entity_id: "{{ fruehjahr }}"
                 data:
                   datetime: "{{ now().strftime('%Y-%m-%d') }} 00:00:00"
-      # Winter: erster Frosttag der Vorhersage
+      # Winter: erster Frosttag der Vorhersage (oder Frostalarm)
       - conditions:
           - condition: template
             value_template: "{{ now().month in wintermonate }}"
@@ -128,7 +135,7 @@ actions:
                     {% set ns.d = (t.datetime | string)[:10] %}
                   {% endif %}
                 {% endfor %}
-                {{ ns.d }}
+                {% if ns.d == '' and alarm | string | length > 0 and is_state(alarm, 'on') %}{{ now().strftime('%Y-%m-%d') }}{% else %}{{ ns.d }}{% endif %}
           - if:
               - condition: template
                 value_template: "{{ frosttag != '' }}"

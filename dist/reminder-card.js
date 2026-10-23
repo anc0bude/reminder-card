@@ -19,6 +19,7 @@ const NO_DATE_YEAR = 2099; // Fälligkeit "kein Termin"
 const HOURS = { Stunden: 1, Tage: 24, Monate: 730.5 };
 const ICONS = ["mdi:bell-outline", "mdi:wrench", "mdi:tools", "mdi:water", "mdi:pipe", "mdi:pump", "mdi:air-filter", "mdi:filter-outline", "mdi:fridge-outline", "mdi:washing-machine", "mdi:dishwasher", "mdi:stove", "mdi:broom", "mdi:trash-can-outline", "mdi:recycle", "mdi:leaf", "mdi:flower", "mdi:radiator", "mdi:thermometer", "mdi:snowflake", "mdi:smoke-detector-variant", "mdi:battery-alert", "mdi:lightbulb-outline", "mdi:home-roof", "mdi:garage", "mdi:car", "mdi:car-wrench", "mdi:key-outline", "mdi:paw", "mdi:medical-bag", "mdi:calendar-check", "mdi:shower"];
 const PRESETS = [
+  { name: "Außenwasser abdrehen und entlüften", icon: "mdi:snowflake-alert", art: "frost", label: "Termin nach Frostvorhersage" },
   { name: "Wasserfilter Kühlschrank", icon: "mdi:fridge-outline", n: 6, u: "Monate" },
   { name: "Rauchmelder testen", icon: "mdi:smoke-detector-variant", n: 12, u: "Monate" },
   { name: "Heizkörper entlüften", icon: "mdi:radiator", n: 12, u: "Monate" },
@@ -194,7 +195,7 @@ class ReminderCard extends HTMLElement {
     items.sort((a, b) => (a.i.f && !a.i.none ? a.i.f.getTime() : Infinity) === (b.i.f && !b.i.none ? b.i.f.getTime() : Infinity)
       ? String(a.r.name).localeCompare(String(b.r.name), "de") || String(a.r.id).localeCompare(String(b.r.id))
       : (a.i.f && !a.i.none ? a.i.f.getTime() : Infinity) - (b.i.f && !b.i.none ? b.i.f.getTime() : Infinity));
-    const watched = [["zuletzt", "input_datetime"], ["intervall", "input_number"], ["vorlauf", "input_number"], ["wiederholung", "input_number"], ["intervall_einheit", "input_select"], ["vorlauf_einheit", "input_select"]];
+    const watched = [["zuletzt", "input_datetime"], ["intervall", "input_number"], ["vorlauf", "input_number"], ["wiederholung", "input_number"], ["intervall_einheit", "input_select"], ["vorlauf_einheit", "input_select"], ["frost_ab", "input_number"], ["frost_tage", "input_number"], ["reset_monat", "input_number"]];
     const master = this._hass.states[this._masterEntity()]?.state;
     const sig =
       master + "@" + this._confirm + "@" + (this._admin() && this._setupNeeded()) + "@" +
@@ -281,6 +282,14 @@ class ReminderCard extends HTMLElement {
            : "Wird bei Frost-Vorhersage automatisch gesetzt. Du kannst ihn hier von Hand setzen.") : "",
       quelle ? `<div class="info">${quelle}</div>` : "",
     ].join("");
+    const hasFrost = this._val(r, "input_number", "frost_ab") != null;
+    const monthNames = ["", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+    const rm = Number(this._val(r, "input_number", "reset_monat") ?? 4);
+    const frost = hasFrost ? [
+      this._fld("Frost ab (°C)", `<div class="pair"><input type="number" step="1" min="-30" max="15" value="${this._val(r, "input_number", "frost_ab")}" data-set="input_number.frost_ab" data-id="${r.id}"></div>`, "Sinkt der vorhergesagte Tiefstwert auf diese Temperatur oder darunter, wird der Termin auf diesen Tag gesetzt."),
+      this._fld("Vorhersage-Fenster (Tage)", `<div class="pair"><input type="number" step="1" min="1" max="7" value="${this._val(r, "input_number", "frost_tage")}" data-set="input_number.frost_tage" data-id="${r.id}"></div>`, "So viele Tage im Voraus wird die Vorhersage geprüft."),
+      this._fld("Zurücksetzen im Frühjahr", `<select data-set="input_number.reset_monat" data-id="${r.id}">${monthNames.map((n, m) => (m ? `<option value="${m}"${m === rm ? " selected" : ""}>${n}</option>` : "")).join("")}</select>`, "Am 1. dieses Monats beginnt die Erinnerung von vorn. Pro Winter wird einmal gemeldet."),
+    ].join("") : "";
     const meldung = [
       this._fld("Erste Meldung vorher", this._pair(r, "vorlauf", "vorlauf_einheit", 100000), `So lange vor dem Termin wird zum ersten Mal gemeldet. ${startTxt}`),
       rep != null ? this._fld("Wiederholung nach dem Termin (Tage)", `<div class="pair"><input type="number" min="0" max="60" step="1" value="${rep}" data-set="input_number.wiederholung" data-id="${r.id}"></div>`, "Alle so viele Tage erneut melden, bis „Erledigt“ gedrückt wird. 0 = nicht wiederholen.") : "",
@@ -293,6 +302,7 @@ class ReminderCard extends HTMLElement {
     return `<div class="edit">
       ${allgemein}
       ${termin ? `<div class="grp"><div class="gt">Termin</div>${termin}</div>` : ""}
+      ${frost ? `<div class="grp"><div class="gt">Termin nach Frostvorhersage</div>${frost}</div>` : ""}
       <div class="grp"><div class="gt">Meldung</div>${meldung}</div>
       ${this._admin() ? `<div class="grp"><div class="gt">Löschen</div>${this._confirm === r.id
         ? `<div class="info">Wirklich löschen? Alle Hilfsgrößen und Automationen dieser Erinnerung werden entfernt.</div><div class="btns"><button class="danger" data-act="delete" data-id="${r.id}">Ja, löschen</button><button data-act="cancel-del">Abbrechen</button></div>`
@@ -353,7 +363,7 @@ class ReminderCard extends HTMLElement {
         <div class="btns"><button class="done" data-act="setup-go" ${w.busy ? "disabled" : ""}>Einrichten</button><button data-act="wiz-close">Abbrechen</button></div></div>`;
       return;
     }
-    const pre = PRESETS.map((p, i) => `<option value="${i}"${w.preset === String(i) ? " selected" : ""}>${p.name} (${p.n} ${p.u})</option>`).join("");
+    const pre = PRESETS.map((p, i) => `<option value="${i}"${w.preset === String(i) ? " selected" : ""}>${p.name} (${p.art === "frost" ? p.label : `${p.n} ${p.u}`})</option>`).join("");
     const units = (sel) => Object.keys(HOURS).map((o) => `<option${o === sel ? " selected" : ""}>${o}</option>`).join("");
     const sensors = Object.entries(this._hass.states).filter(([e]) => e.startsWith("sensor.")).map(([e]) => `<option value="${e}">`).join("");
     const cals = Object.keys(this._hass.states).filter((e) => e.startsWith("calendar.")).map((e) => `<option value="${e}">`).join("");
@@ -363,19 +373,33 @@ class ReminderCard extends HTMLElement {
       <div class="fld"><label>Symbol</label>${this._iconPicker(w.icon || "mdi:bell-outline", 'class="w-icon"')}<div class="hint">Symbol anklicken oder den Namen eines Material-Design-Symbols eintippen.</div></div>
       <div class="fld"><label>Woher kommt der Termin?</label><select class="w-art">
         <option value="intervall"${w.art === "intervall" ? " selected" : ""}>Wiederkehrend (alle … Stunden, Tage oder Monate)</option>
-        <option value="sensor"${w.art === "sensor" ? " selected" : ""}>Aus einem Sensor (Stunden bis zum Wechsel)</option>
-        <option value="kalender"${w.art === "kalender" ? " selected" : ""}>Aus einem Kalender</option></select></div>
+        <option value="sensor"${w.art === "sensor" ? " selected" : ""}>Termin aus einem Sensor (Stunden bis zum Wechsel)</option>
+        <option value="kalender"${w.art === "kalender" ? " selected" : ""}>Termin aus einem Kalender</option>
+        <option value="frost"${w.art === "frost" ? " selected" : ""}>Termin nach Frostvorhersage</option></select></div>
       ${w.art === "intervall" ? `
         <div class="fld"><label>Intervall</label><div class="pair"><input type="number" min="1" class="w-n" value="${w.n || 6}"><select class="w-u">${units(w.u || "Monate")}</select></div><div class="hint">Wie oft die Aufgabe ansteht.</div></div>
         <div class="fld"><label>Zuletzt erledigt (leer = jetzt)</label><input type="datetime-local" class="w-z" value="${w.z || ""}"><div class="hint">Daraus wird der erste Termin berechnet.</div></div>` : ""}
       ${w.art === "sensor" ? `<div class="fld"><label>Sensor</label><input type="text" class="w-sensor" value="${w.sensor || ""}" list="w-sensors" placeholder="sensor.…"><datalist id="w-sensors">${sensors}</datalist><div class="hint">Der Sensor muss die verbleibenden Stunden bis zum Termin liefern, zum Beispiel „Filter replace“ einer Lüftung.</div></div>` : ""}
       ${w.art === "kalender" ? `<div class="fld"><label>Kalender</label><input type="text" class="w-cal" value="${w.cal || ""}" list="w-cals" placeholder="calendar.…"><datalist id="w-cals">${cals}</datalist></div>
         <div class="fld"><label>Titel enthält (optional)</label><input type="text" class="w-filter" value="${w.filter || ""}" placeholder="z. B. Bioabfall"><div class="hint">Nur Termine mit diesem Text im Titel zählen. Leer = alle Termine.</div></div>` : ""}
+      ${w.art === "frost" ? this._frostFields(w) : ""}
       <details><summary>Erweitert</summary>
-        <div class="fld"><label>Erste Meldung vorher</label><div class="pair"><input type="number" min="0" class="w-vl" value="${w.vl ?? 7}"><select class="w-vlu">${units(w.vlu || "Tage")}</select></div></div>
+        <div class="fld"><label>Erste Meldung vorher</label><div class="pair"><input type="number" min="0" class="w-vl" value="${w.vl ?? (w.art === "frost" ? 3 : 7)}"><select class="w-vlu">${units(w.vlu || "Tage")}</select></div></div>
         <div class="fld"><label>Wiederholung nach dem Termin (Tage)</label><div class="pair"><input type="number" min="0" max="60" class="w-rep" value="${w.rep ?? 3}"></div></div></details>
       <div class="msg">${w.msg || ""}</div>
       <div class="btns"><button class="done" data-act="wiz-create" ${w.busy ? "disabled" : ""}>Anlegen</button><button data-act="wiz-close">Abbrechen</button></div></div>`;
+  }
+
+  _frostFields(w) {
+    const wx = Object.keys(this._hass.states).filter((e) => e.startsWith("weather."));
+    const al = Object.keys(this._hass.states).filter((e) => e.startsWith("binary_sensor.")).map((e) => `<option value="${e}">`).join("");
+    const months = ["", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+    return `<div class="fld"><label>Wettervorhersage</label><input type="text" class="w-wetter" value="${w.wetter || wx[0] || ""}" list="w-wx"><datalist id="w-wx">${wx.map((e) => `<option value="${e}">`).join("")}</datalist><div class="hint">Wetter-Entität mit täglicher Vorhersage (Tiefstwert).</div></div>
+      <div class="fld"><label>Frost ab (°C)</label><div class="pair"><input type="number" step="1" class="w-frostab" value="${w.frostab ?? -2}"></div><div class="hint">Sinkt der vorhergesagte Tiefstwert auf diese Temperatur oder darunter, wird der Termin auf diesen Tag gesetzt.</div></div>
+      <div class="fld"><label>Vorhersage-Fenster (Tage)</label><div class="pair"><input type="number" min="1" max="7" class="w-frosttage" value="${w.frosttage ?? 3}"></div><div class="hint">So viele Tage im Voraus wird die Vorhersage geprüft.</div></div>
+      <div class="fld"><label>Zurücksetzen im Frühjahr</label><select class="w-resetm">${[3, 4, 5].map((m) => `<option value="${m}"${Number(w.resetm ?? 4) === m ? " selected" : ""}>${months[m]}</option>`).join("")}</select><div class="hint">Am 1. dieses Monats beginnt die Erinnerung von vorn. Pro Winter wird einmal gemeldet.</div></div>
+      <div class="fld"><label><input type="checkbox" class="w-folge"${w.folge === false ? "" : " checked"}> Im Frühjahr erinnern</label><input type="text" class="w-folgename" value="${w.folgename || "Außenwasser wieder aufdrehen"}"><div class="hint">Legt eine zweite Erinnerung an, die zum Zurücksetzen fällig wird.</div></div>
+      <div class="fld"><label>Frostalarm-Sensor (optional)</label><input type="text" class="w-alarm" value="${w.alarm || ""}" list="w-al" placeholder="binary_sensor.…"><datalist id="w-al">${al}</datalist><div class="hint">Löst den Termin zusätzlich aus, wenn der Sensor „an“ meldet und die Vorhersage keinen Frost zeigt. Vorher prüfen, ob der Sensor wirklich nur bei Frost „an“ meldet.</div></div>`;
   }
 
   _banner() {
@@ -391,6 +415,8 @@ class ReminderCard extends HTMLElement {
       Object.assign(w, {
         name: v(".w-name"), icon: v(".w-icon"), art: v(".w-art"), n: v(".w-n"), u: v(".w-u"), z: v(".w-z"),
         sensor: v(".w-sensor"), cal: v(".w-cal"), filter: v(".w-filter"), vl: v(".w-vl"), vlu: v(".w-vlu"), rep: v(".w-rep"),
+        wetter: v(".w-wetter"), frostab: v(".w-frostab"), frosttage: v(".w-frosttage"), resetm: v(".w-resetm"), alarm: v(".w-alarm"),
+        folge: q(".w-folge") ? q(".w-folge").checked : w.folge, folgename: v(".w-folgename"),
       });
     }
     return w;
@@ -414,6 +440,63 @@ class ReminderCard extends HTMLElement {
     await this._hass.callWS({ type: `${domain}/create`, name: `Erinnerung ${id} ${key}`, ...params });
   }
 
+  // Legt die Hilfsgrößen einer Erinnerung an und setzt Startwerte. art: intervall | sensor | kalender | frost | saison
+  async _makeReminder(id, name, icon, art, o) {
+    const dtp = { has_date: true, has_time: true, icon: "mdi:calendar-clock" };
+    const num = { min: 0, max: 100000, step: 1, mode: "box" };
+    const unit = { options: ["Stunden", "Tage", "Monate"], icon: "mdi:timer-cog-outline" };
+    const iv = art === "intervall";
+    await this._mk("input_datetime", id, "faellig", dtp);
+    await this._mk("input_datetime", id, "gemeldet", { ...dtp, icon: "mdi:bell-check" });
+    if (iv) {
+      await this._mk("input_datetime", id, "zuletzt", { ...dtp, icon: "mdi:calendar-check" });
+      await this._mk("input_number", id, "intervall", { ...num, min: 1 });
+      await this._mk("input_select", id, "intervall_einheit", unit);
+    }
+    if (art === "frost") {
+      await this._mk("input_number", id, "frost_ab", { min: -30, max: 15, step: 1, mode: "box", unit_of_measurement: "°C" });
+      await this._mk("input_number", id, "frost_tage", { min: 1, max: 7, step: 1, mode: "box", unit_of_measurement: "Tage" });
+      await this._mk("input_number", id, "reset_monat", { min: 1, max: 12, step: 1, mode: "box" });
+    }
+    await this._mk("input_number", id, "vorlauf", num);
+    await this._mk("input_select", id, "vorlauf_einheit", unit);
+    await this._mk("input_number", id, "wiederholung", { ...num, max: 60, unit_of_measurement: "Tage" });
+    await this._mk("input_boolean", id, "aktiv", { icon });
+    await this._mk("input_select", id, "art", { options: ["Wiederkehrend", "Sensor", "Kalender", "Saison"], icon: "mdi:shape-outline" });
+    if (!this._hass.states["input_boolean.erinnerungen_aktiv"]) {
+      await this._hass.callWS({ type: "input_boolean/create", name: "Erinnerungen aktiv", icon: "mdi:bell-check-outline" });
+    }
+    const E = (d, k) => `${d}.erinnerung_${id}_${k}`;
+    for (let t = 0; t < 30 && !this._hass.states[E("input_boolean", "aktiv")]; t++) await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 800));
+    const sv = (d, s, data) => this._hass.callService(d, s, data);
+    await this._hass.callWS({ type: "config/entity_registry/update", entity_id: E("input_datetime", "faellig"), name });
+    sv("input_boolean", "turn_on", { entity_id: E("input_boolean", "aktiv") });
+    sv("input_boolean", "turn_on", { entity_id: "input_boolean.erinnerungen_aktiv" });
+    sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "gemeldet"), datetime: "1970-01-01 00:00:00" });
+    sv("input_number", "set_value", { entity_id: E("input_number", "vorlauf"), value: Number(o.vl ?? 7) });
+    sv("input_select", "select_option", { entity_id: E("input_select", "vorlauf_einheit"), option: o.vlu || "Tage" });
+    sv("input_number", "set_value", { entity_id: E("input_number", "wiederholung"), value: Number(o.rep ?? 3) });
+    sv("input_select", "select_option", { entity_id: E("input_select", "art"), option: { intervall: "Wiederkehrend", sensor: "Sensor", kalender: "Kalender", frost: "Saison", saison: "Saison" }[art] });
+    sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "faellig"), datetime: "2099-12-31 00:00:00" });
+    if (art === "frost") {
+      sv("input_number", "set_value", { entity_id: E("input_number", "frost_ab"), value: Number(o.frostab ?? -2) });
+      sv("input_number", "set_value", { entity_id: E("input_number", "frost_tage"), value: Number(o.frosttage ?? 3) });
+      sv("input_number", "set_value", { entity_id: E("input_number", "reset_monat"), value: Number(o.resetm ?? 4) });
+    }
+    if (iv) {
+      const n = Number(o.n) || 6;
+      const unitSel = o.u || "Monate";
+      const z = o.z ? parse(o.z.replace("T", " ")) : new Date();
+      z.setSeconds(0, 0);
+      sv("input_number", "set_value", { entity_id: E("input_number", "intervall"), value: n });
+      sv("input_select", "select_option", { entity_id: E("input_select", "intervall_einheit"), option: unitSel });
+      sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "zuletzt"), datetime: dts(z) });
+      sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "faellig"), datetime: dts(addUnit(z, n, unitSel)) });
+    }
+    return E;
+  }
+
   async _create() {
     const w = this._readWiz();
     this._w = w;
@@ -425,69 +508,55 @@ class ReminderCard extends HTMLElement {
     for (let k = 2; this._ids().includes(id); k++) id = `${this._slug(name).slice(0, 36)}_${k}`;
     const art = w.art || "intervall";
     const icon = w.icon || "mdi:bell-outline";
-    const bpFile = art === "sensor" ? "erinnerung_sensor.yaml" : art === "kalender" ? "erinnerung_kalender.yaml" : null;
+    const bpFile = { sensor: "erinnerung_sensor.yaml", kalender: "erinnerung_kalender.yaml", frost: "erinnerung_frost.yaml" }[art];
     if (bpFile && !(await this._blueprintOk(bpFile))) return fail(this._blueprintHint(bpFile));
     if (art === "sensor" && !this._hass.states[w.sensor]) return fail("Bitte einen vorhandenen Sensor wählen.");
     if (art === "kalender" && !this._hass.states[w.cal]) return fail("Bitte einen vorhandenen Kalender wählen.");
-    const n = Number(w.n) || 6;
+    if (art === "frost" && !this._hass.states[w.wetter]?.state) return fail("Bitte eine vorhandene Wetter-Entität wählen.");
+    const folgeName = art === "frost" && w.folge ? (w.folgename || "").trim() : "";
+    let folgeId = "";
+    if (folgeName) {
+      folgeId = this._slug(folgeName);
+      if (!folgeId) return fail("Der Name der Frühjahrs-Erinnerung enthält keine verwendbaren Zeichen.");
+      for (let k = 2; folgeId === id || this._ids().includes(folgeId); k++) folgeId = `${this._slug(folgeName).slice(0, 36)}_${k}`;
+    }
     this._w.busy = true;
     this._w.msg = "Wird angelegt …";
     this._renderWiz();
     try {
-      const dtp = { has_date: true, has_time: true, icon: "mdi:calendar-clock" };
-      const num = { min: 0, max: 100000, step: 1, mode: "box" };
-      const unit = { options: ["Stunden", "Tage", "Monate"], icon: "mdi:timer-cog-outline" };
-      await this._mk("input_datetime", id, "faellig", dtp);
-      await this._mk("input_datetime", id, "gemeldet", { ...dtp, icon: "mdi:bell-check" });
-      if (art === "intervall") {
-        await this._mk("input_datetime", id, "zuletzt", { ...dtp, icon: "mdi:calendar-check" });
-        await this._mk("input_number", id, "intervall", { ...num, min: 1 });
-        await this._mk("input_select", id, "intervall_einheit", unit);
-      }
-      await this._mk("input_number", id, "vorlauf", num);
-      await this._mk("input_select", id, "vorlauf_einheit", unit);
-      await this._mk("input_number", id, "wiederholung", { ...num, max: 60, unit_of_measurement: "Tage" });
-      await this._mk("input_boolean", id, "aktiv", { icon });
-      await this._mk("input_select", id, "art", { options: ["Wiederkehrend", "Sensor", "Kalender", "Saison"], icon: "mdi:shape-outline" });
-      if (!this._hass.states["input_boolean.erinnerungen_aktiv"]) {
-        await this._hass.callWS({ type: "input_boolean/create", name: "Erinnerungen aktiv", icon: "mdi:bell-check-outline" });
-      }
-      const E = (d, k) => `${d}.erinnerung_${id}_${k}`;
-      for (let t = 0; t < 30 && !this._hass.states[E("input_boolean", "aktiv")]; t++) await new Promise((r) => setTimeout(r, 300));
-      await new Promise((r) => setTimeout(r, 800));
+      const E = await this._makeReminder(id, name, icon, art, w);
       const sv = (d, s, data) => this._hass.callService(d, s, data);
-      await this._hass.callWS({ type: "config/entity_registry/update", entity_id: E("input_datetime", "faellig"), name });
-      sv("input_boolean", "turn_on", { entity_id: E("input_boolean", "aktiv") });
-      sv("input_boolean", "turn_on", { entity_id: "input_boolean.erinnerungen_aktiv" });
-      sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "gemeldet"), datetime: "1970-01-01 00:00:00" });
-      sv("input_number", "set_value", { entity_id: E("input_number", "vorlauf"), value: Number(w.vl ?? 7) });
-      sv("input_select", "select_option", { entity_id: E("input_select", "vorlauf_einheit"), option: w.vlu || "Tage" });
-      sv("input_number", "set_value", { entity_id: E("input_number", "wiederholung"), value: Number(w.rep ?? 3) });
-      sv("input_select", "select_option", { entity_id: E("input_select", "art"), option: { intervall: "Wiederkehrend", sensor: "Sensor", kalender: "Kalender" }[art] });
-      if (art === "intervall") {
-        const unitSel = w.u || "Monate";
-        const z = w.z ? parse(w.z.replace("T", " ")) : new Date();
-        z.setSeconds(0, 0);
-        sv("input_number", "set_value", { entity_id: E("input_number", "intervall"), value: n });
-        sv("input_select", "select_option", { entity_id: E("input_select", "intervall_einheit"), option: unitSel });
-        sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "zuletzt"), datetime: dts(z) });
-        sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "faellig"), datetime: dts(addUnit(z, n, unitSel)) });
-      } else if (art === "sensor") {
+      if (art === "sensor") {
         const hours = Number(this._hass.states[w.sensor].state);
-        const f = Number.isFinite(hours) ? new Date(Date.now() + hours * 3600000) : null;
-        sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "faellig"), datetime: f ? dts(f) : "2099-12-31 00:00:00" });
+        if (Number.isFinite(hours)) sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "faellig"), datetime: dts(new Date(Date.now() + hours * 3600000)) });
         await this._hass.callApi("POST", `config/automation/config/erinnerung_${id}_sensor`, {
           alias: `Erinnerung ${name} Termin`, description: "Termin aus Sensor (reminder-card).",
           use_blueprint: { path: "anc0bude/erinnerung_sensor.yaml", input: { sensor: w.sensor, faellig: E("input_datetime", "faellig") } },
         });
-      } else {
-        sv("input_datetime", "set_datetime", { entity_id: E("input_datetime", "faellig"), datetime: "2099-12-31 00:00:00" });
+      } else if (art === "kalender") {
         await this._hass.callApi("POST", `config/automation/config/erinnerung_${id}_kalender`, {
           alias: `Erinnerung ${name} Termin`, description: "Termin aus Kalender (reminder-card).",
           use_blueprint: { path: "anc0bude/erinnerung_kalender.yaml", input: { kalender: w.cal, faellig: E("input_datetime", "faellig"), suchtext: w.filter || "", tage: 45 } },
         });
         setTimeout(() => {
           const a = Object.entries(this._hass.states).find(([e, s]) => e.startsWith("automation.") && s.attributes.id === `erinnerung_${id}_kalender`);
+          if (a) sv("automation", "trigger", { entity_id: a[0], skip_condition: true });
+        }, 2500);
+      } else if (art === "frost") {
+        let folgeFaellig = "";
+        if (folgeName) {
+          const F = await this._makeReminder(folgeId, folgeName, "mdi:water-pump", "saison", { vl: 0, vlu: "Tage", rep: 3 });
+          folgeFaellig = F("input_datetime", "faellig");
+        }
+        await this._hass.callApi("POST", `config/automation/config/erinnerung_${id}_frost`, {
+          alias: `Erinnerung ${name} Termin`, description: "Termin aus Frost-Vorhersage (reminder-card).",
+          use_blueprint: { path: "anc0bude/erinnerung_frost.yaml", input: {
+            wetter: w.wetter, faellig: E("input_datetime", "faellig"), gemeldet: E("input_datetime", "gemeldet"),
+            frost_ab: E("input_number", "frost_ab"), tage: E("input_number", "frost_tage"), reset_monat: E("input_number", "reset_monat"),
+            faellig_fruehjahr: folgeFaellig, frostalarm: w.alarm || "" } },
+        });
+        setTimeout(() => {
+          const a = Object.entries(this._hass.states).find(([e, s]) => e.startsWith("automation.") && s.attributes.id === `erinnerung_${id}_frost`);
           if (a) sv("automation", "trigger", { entity_id: a[0], skip_condition: true });
         }, 2500);
       }
@@ -553,7 +622,7 @@ class ReminderCard extends HTMLElement {
           await this._hass.callWS({ type: `${d}/delete`, [`${d}_id`]: it.id });
         }
       }
-      for (const k of ["sensor", "kalender"]) {
+      for (const k of ["sensor", "kalender", "frost"]) {
         try { await this._hass.callApi("DELETE", `config/automation/config/erinnerung_${r.id}_${k}`); } catch (e) { /* gibt es nicht */ }
       }
     } catch (e) {
@@ -585,7 +654,10 @@ class ReminderCard extends HTMLElement {
       const w = this._readWiz();
       const p = PRESETS[Number(t.value)];
       w.preset = t.value;
-      if (p) Object.assign(w, { name: p.name, icon: p.icon, art: "intervall", n: p.n, u: p.u });
+      if (p) {
+        Object.assign(w, { name: p.name, icon: p.icon, art: p.art || "intervall", n: p.n, u: p.u });
+        if (p.art === "frost") Object.assign(w, { folge: true, folgename: "Außenwasser wieder aufdrehen", vl: 3 });
+      }
       this._w = w;
       this._renderWiz();
     } else if (t.classList.contains("w-art")) {
