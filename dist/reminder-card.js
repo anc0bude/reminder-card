@@ -184,7 +184,7 @@ class ReminderCard extends HTMLElement {
     const sig =
       master + "@" + this._confirm + "@" + (this._admin() && this._setupNeeded()) + "@" +
       items
-        .map(({ r, i }) => [r.id, i.dateOnly ? i.days : i.f && Math.round(i.hours), i.status, i.aktiv, ...watched.map(([k, d]) => this._val(r, d, k)), !!this._open[r.id]].join("|"))
+        .map(({ r, i }) => [r.id, r.name, r.icon, i.dateOnly ? i.days : i.f && Math.round(i.hours), i.status, i.aktiv, ...watched.map(([k, d]) => this._val(r, d, k)), !!this._open[r.id]].join("|"))
         .join("#");
     if (sig === this._sig) return;
     this._sig = sig;
@@ -254,7 +254,13 @@ class ReminderCard extends HTMLElement {
       this._fld("Erste Meldung vorher", this._pair(r, "vorlauf", "vorlauf_einheit", 100000), `So lange vor dem Termin wird zum ersten Mal gemeldet. ${startTxt}`),
       rep != null ? this._fld("Wiederholung nach dem Termin (Tage)", `<div class="pair"><input type="number" min="0" max="60" step="1" value="${rep}" data-set="input_number.wiederholung" data-id="${r.id}"></div>`, "Alle so viele Tage erneut melden, bis „Erledigt“ gedrückt wird. 0 = nicht wiederholen.") : "",
     ].join("");
+    const allgemein = this._admin() && !this._config.reminders?.length
+      ? `<div class="grp"><div class="gt">Allgemein</div>
+          ${this._fld("Anzeigename", `<input type="text" value="${String(r.name).replace(/"/g, "&quot;")}" data-ren="name" data-id="${r.id}">`, "So heißt die Erinnerung in der Karte und in der Meldung.")}
+          ${this._fld("Symbol", `<input type="text" value="${r.icon || ""}" list="rc-icons" data-ren="icon" data-id="${r.id}"><datalist id="rc-icons">${["mdi:bell-outline", "mdi:wrench", "mdi:water", "mdi:air-filter", "mdi:fridge-outline", "mdi:broom", "mdi:home-outline", "mdi:car", "mdi:flower"].map((i) => `<option value="${i}">`).join("")}</datalist>`, "Name eines Material-Design-Symbols, zum Beispiel mdi:wrench.")}
+        </div>` : "";
     return `<div class="edit">
+      ${allgemein}
       ${termin ? `<div class="grp"><div class="gt">Termin</div>${termin}</div>` : ""}
       <div class="grp"><div class="gt">Meldung</div>${meldung}</div>
       ${this._admin() ? `<div class="grp"><div class="gt">Löschen</div>${this._confirm === r.id
@@ -527,6 +533,21 @@ class ReminderCard extends HTMLElement {
     this._render();
   }
 
+  async _rename(inp) {
+    const id = inp.dataset.id;
+    const value = inp.value.trim();
+    if (!value) return;
+    try {
+      if (inp.dataset.ren === "name") {
+        await this._hass.callWS({ type: "config/entity_registry/update", entity_id: `input_datetime.erinnerung_${id}_faellig`, name: value });
+      } else {
+        await this._hass.callWS({ type: "config/entity_registry/update", entity_id: `input_boolean.erinnerung_${id}_aktiv`, icon: value });
+      }
+    } catch (e) {
+      console.warn("reminder-card: Umbenennen fehlgeschlagen", e);
+    }
+  }
+
   _wizChange(e) {
     const t = e.target;
     if (t.classList.contains("w-preset")) {
@@ -590,6 +611,11 @@ class ReminderCard extends HTMLElement {
     const sw = e.target.closest("ha-switch[data-toggle]");
     if (sw) {
       this._toggle(sw);
+      return;
+    }
+    const ren = e.target.closest("[data-ren]");
+    if (ren) {
+      this._rename(ren);
       return;
     }
     const inp = e.target.closest("[data-set]");
