@@ -291,7 +291,7 @@ class ReminderCard extends HTMLElement {
       this._fld("Zurücksetzen im Frühjahr", `<select data-set="input_number.reset_monat" data-id="${r.id}">${monthNames.map((n, m) => (m ? `<option value="${m}"${m === rm ? " selected" : ""}>${n}</option>` : "")).join("")}</select>`, "Am 1. dieses Monats beginnt die Erinnerung von vorn. Pro Winter wird einmal gemeldet."),
     ].join("") : "";
     const meldung = [
-      this._fld("Erste Meldung vorher", this._pair(r, "vorlauf", "vorlauf_einheit", 100000), `So lange vor dem Termin wird zum ersten Mal gemeldet. ${startTxt}`),
+      this._fld("Erste Meldung vorher", this._pair(r, "vorlauf", "vorlauf_einheit", 100000), (hasFrost ? "Beim Frost steht der Termin erst fest, wenn Frost im Vorhersage-Fenster angesagt ist. Gemeldet wird dann sofort. Ein kleinerer Wert verzögert die Meldung bis zu so vielen Stunden, Tagen oder Monaten vor dem Frosttag." : `So lange vor dem Termin wird zum ersten Mal gemeldet. ${startTxt}`)),
       rep != null ? this._fld("Wiederholung nach dem Termin (Tage)", `<div class="pair"><input type="number" min="0" max="60" step="1" value="${rep}" data-set="input_number.wiederholung" data-id="${r.id}"></div>`, "Alle so viele Tage erneut melden, bis „Erledigt“ gedrückt wird. 0 = nicht wiederholen.") : "",
     ].join("");
     const allgemein = this._admin() && !this._config.reminders?.length
@@ -385,6 +385,7 @@ class ReminderCard extends HTMLElement {
       ${w.art === "frost" ? this._frostFields(w) : ""}
       <details><summary>Erweitert</summary>
         <div class="fld"><label>Erste Meldung vorher</label><div class="pair"><input type="number" min="0" class="w-vl" value="${w.vl ?? (w.art === "frost" ? 3 : 7)}"><select class="w-vlu">${units(w.vlu || "Tage")}</select></div></div>
+        ${w.art === "frost" ? '<div class="hint">Beim Frost wird sofort gemeldet, sobald Frost im Vorhersage-Fenster angesagt ist. „Erste Meldung vorher“ verzögert das nur, wenn der Wert kleiner als das Fenster ist.</div>' : ""}
         <div class="fld"><label>Wiederholung nach dem Termin (Tage)</label><div class="pair"><input type="number" min="0" max="60" class="w-rep" value="${w.rep ?? 3}"></div></div></details>
       <div class="msg">${w.msg || ""}</div>
       <div class="btns"><button class="done" data-act="wiz-create" ${w.busy ? "disabled" : ""}>Anlegen</button><button data-act="wiz-close">Abbrechen</button></div></div>`;
