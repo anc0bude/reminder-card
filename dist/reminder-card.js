@@ -162,12 +162,13 @@ class ReminderCard extends HTMLElement {
       d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit", year: "numeric" }) +
       (i.dateOnly ? "" : " " + d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" }));
     const near = !i.dateOnly && Math.abs(i.hours) < 48;
-    const n = near ? Math.round(Math.abs(i.hours)) : Math.abs(i.dateOnly ? i.days : Math.round(i.hours / 24));
+    const mins = !i.dateOnly && Math.abs(i.hours) < 1;
+    const n = mins ? Math.round(Math.abs(i.hours) * 60) : near ? Math.round(Math.abs(i.hours)) : Math.abs(i.dateOnly ? i.days : Math.round(i.hours / 24));
     const over = (i.dateOnly ? i.days : i.hours) < 0;
-    if (over) return `<b>seit ${n} ${near ? "Std." : n === 1 ? "Tag" : "Tagen"} überfällig</b> (${fmt(i.f)})`;
+    if (over) return `<b>seit ${n} ${mins ? "Min." : near ? "Std." : n === 1 ? "Tag" : "Tagen"} überfällig</b> (${fmt(i.f)})`;
     if (i.dateOnly && i.days === 0) return "<b>heute fällig</b>";
     if (i.dateOnly && i.days === 1) return `<b>morgen</b> (${fmt(i.f)})`;
-    const t = `in ${n} ${near ? "Std." : "Tagen"}`;
+    const t = `in ${n} ${mins ? "Min." : near ? "Std." : "Tagen"}`;
     return i.status === "bald" ? `<b>${t}</b> (${fmt(i.f)})` : `${t} (${fmt(i.f)})`;
   }
 

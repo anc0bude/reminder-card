@@ -97,6 +97,9 @@ variables:
           {% set when = ft | timestamp_custom('%d.%m.%Y' if date_only else '%d.%m.%Y %H:%M') %}
           {% if date_only %}
             {% set msg = 'heute fällig' if days == 0 else ('fällig morgen (' ~ when ~ ')' if days == 1 else ('fällig in ' ~ days ~ ' Tagen (' ~ when ~ ')' if days > 1 else 'seit ' ~ (-days) ~ ' Tagen überfällig (' ~ when ~ ')')) %}
+          {% elif (hrs | abs) < 1 %}
+            {% set m = (hrs * 60) | abs | round(0) | int %}
+            {% set msg = ('fällig in ' ~ m ~ ' Minuten (' ~ when ~ ')') if hrs >= 0 else ('seit ' ~ m ~ ' Minuten überfällig (' ~ when ~ ')') %}
           {% elif (hrs | abs) < 48 %}
             {% set h = hrs | abs | round(0) | int %}
             {% set msg = ('fällig in ' ~ h ~ ' Stunden (' ~ when ~ ')') if hrs >= 0 else ('seit ' ~ h ~ ' Stunden überfällig (' ~ when ~ ')') %}
