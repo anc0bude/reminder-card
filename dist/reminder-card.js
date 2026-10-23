@@ -83,6 +83,11 @@ class ReminderCard extends HTMLElement {
           .info{font-size:.85em;color:var(--secondary-text-color);background:var(--secondary-background-color);border-radius:8px;padding:8px 10px}
           .sw{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65em;color:var(--secondary-text-color)}
           .head button.ic{padding:4px 6px}
+          .head .sum.warn{color:var(--warning-color,#ffa726);font-weight:500}
+          .mastoff{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:.88em;background:rgba(255,167,38,.15);color:var(--primary-text-color);border-top:1px solid var(--divider-color)}
+          .mastoff[hidden]{display:none}
+          .mastoff ha-icon{--mdc-icon-size:20px;color:var(--warning-color,#ffa726)}
+          .sw.dim{opacity:.4}
           .ipr{display:flex;align-items:center;gap:10px}
           .ipr .prev{--mdc-icon-size:30px;color:var(--primary-color);flex:none}
           .ipw input{width:100%;max-width:320px}
@@ -105,6 +110,7 @@ class ReminderCard extends HTMLElement {
           button:disabled{opacity:.5;cursor:default}
         </style>
         <div class="head"><ha-icon icon="mdi:bell-ring-outline"></ha-icon><span class="t"></span><span class="sum"></span><button class="ic add" data-act="new" title="Neue Erinnerung"><ha-icon icon="mdi:plus"></ha-icon></button><ha-switch class="master" data-toggle="__master" title="Alle Meldungen an/aus"></ha-switch></div>
+        <div class="mastoff" hidden><ha-icon icon="mdi:bell-off-outline"></ha-icon><span>Alle Meldungen sind ausgeschaltet. Fälligkeiten werden weiter berechnet.</span></div>
         <div class="wiz"></div>
         <div class="list"></div>
       </ha-card>`;
@@ -200,7 +206,10 @@ class ReminderCard extends HTMLElement {
     if (!this._w) this._renderWiz();
     const due = items.filter(({ i }) => i.status === "over" || i.status === "bald").length;
     const state = due ? `${due} bald fällig` : "alles in Ordnung";
-    this.querySelector(".sum").textContent = master === "off" ? `${state} · Meldungen aus` : state;
+    const sum = this.querySelector(".sum");
+    sum.textContent = master === "off" ? `Meldungen aus · ${state}` : state;
+    sum.classList.toggle("warn", master === "off");
+    this.querySelector(".mastoff").hidden = master !== "off";
     const ms = this.querySelector(".master");
     ms.style.display = this._hass.states[this._masterEntity()] ? "" : "none";
     ms.checked = master !== "off";
@@ -209,7 +218,7 @@ class ReminderCard extends HTMLElement {
         const cls = i.missing || i.none ? "none" : i.status;
         const base = i.missing ? "Hilfsgrößen fehlen" : i.none ? "kein Termin" : this._when(i);
         const text = i.aktiv ? base : `${base} · Meldung aus`;
-        const sw = this._hass.states[this._ent(r, "input_boolean", "aktiv")] ? `<div class="sw"><ha-switch data-toggle="${r.id}" ${i.aktiv ? "checked" : ""} title="Meldung an/aus"></ha-switch><span>Meldung</span></div>` : "";
+        const sw = this._hass.states[this._ent(r, "input_boolean", "aktiv")] ? `<div class="sw${master === "off" ? " dim" : ""}"><ha-switch data-toggle="${r.id}" ${i.aktiv ? "checked" : ""} title="Meldung an/aus"></ha-switch><span>${master === "off" ? "aus" : "Meldung"}</span></div>` : "";
         const done = (r.kind === "intervall" || r.kind === "saison") && !i.missing && !i.none ? `<button class="done" data-act="done" data-id="${r.id}">Erledigt</button>` : "";
         const edit = this._open[r.id] ? this._editHtml(r) : "";
         return `<div class="item st-${cls}"><div class="row"><ha-icon class="lead" icon="${r.icon || "mdi:bell-outline"}"></ha-icon>
