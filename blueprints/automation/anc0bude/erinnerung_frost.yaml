@@ -1,0 +1,140 @@
+blueprint:
+  name: Erinnerung vor Frost (Außenwasser)
+  description: >-
+    Setzt die Fälligkeit einer Erinnerung auf den ersten Frosttag der Vorhersage, einmal pro Winter, zum Beispiel
+    „Außenwasser abdrehen und entlüften“. Zum Frühjahrstermin wird die Erinnerung zurückgesetzt und optional eine
+    zweite Erinnerung („wieder aufdrehen“) fällig gestellt.
+  domain: automation
+  author: anc0bude
+  source_url: https://github.com/anc0bude/reminder-card/blob/main/blueprints/automation/anc0bude/erinnerung_frost.yaml
+  input:
+    wetter:
+      name: Wetter-Entität mit Vorhersage
+      selector:
+        entity:
+          domain: weather
+    faellig:
+      name: Helfer „Fällig am“ der Frost-Erinnerung
+      selector:
+        entity:
+          domain: input_datetime
+    gemeldet:
+      name: Helfer „Gemeldet“ der Frost-Erinnerung
+      selector:
+        entity:
+          domain: input_datetime
+    frost_ab:
+      name: Frost ab (°C)
+      description: Tiefstwert der Vorhersage, bei dem gewarnt wird.
+      selector:
+        number:
+          min: -15
+          max: 5
+          step: 1
+          mode: box
+          unit_of_measurement: °C
+      default: -2
+    tage:
+      name: Vorhersage-Fenster (Tage)
+      selector:
+        number:
+          min: 1
+          max: 7
+          mode: box
+      default: 3
+    reset_monat:
+      name: Zurücksetzen im Monat
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+      default: 4
+    faellig_fruehjahr:
+      name: Helfer „Fällig am“ für „wieder aufdrehen“ (optional)
+      selector:
+        entity:
+          domain: input_datetime
+      default: ""
+
+mode: single
+
+variables:
+  wetter: !input wetter
+  faellig: !input faellig
+  gemeldet: !input gemeldet
+  frost_ab: !input frost_ab
+  tage: !input tage
+  reset_monat: !input reset_monat
+  fruehjahr: !input faellig_fruehjahr
+  wintermonate: "{{ (range(10, 13) | list) + (range(1, reset_monat | int(4)) | list) }}"
+
+triggers:
+  - trigger: time
+    at: "06:00:00"
+  - trigger: time
+    at: "18:00:00"
+
+actions:
+  - choose:
+      # Frühjahr: zurücksetzen (am ersten Tag des Reset-Monats)
+      - conditions:
+          - condition: template
+            value_template: "{{ now().month == reset_monat | int(4) and now().day == 1 and now().hour < 12 }}"
+        sequence:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ faellig }}"
+            data:
+              datetime: "2099-12-31 00:00:00"
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ gemeldet }}"
+            data:
+              datetime: "1970-01-01 00:00:00"
+          - if:
+              - condition: template
+                value_template: "{{ fruehjahr | string | length > 0 }}"
+            then:
+              - action: input_datetime.set_datetime
+                target:
+                  entity_id: "{{ fruehjahr }}"
+                data:
+                  datetime: "{{ now().strftime('%Y-%m-%d') }} 00:00:00"
+      # Winter: erster Frosttag der Vorhersage
+      - conditions:
+          - condition: template
+            value_template: "{{ now().month in wintermonate }}"
+          - condition: template
+            value_template: "{{ states(faellig).startswith('2099') }}"
+          - condition: template
+            value_template: >-
+              {% set start_jahr = now().year if now().month >= 10 else now().year - 1 %}
+              {{ states(gemeldet) < (start_jahr | string) ~ '-10-01' }}
+        sequence:
+          - action: weather.get_forecasts
+            target:
+              entity_id: "{{ wetter }}"
+            data:
+              type: daily
+            response_variable: fc
+          - variables:
+              tage_liste: "{{ (fc[wetter].forecast | list)[: tage | int(3)] }}"
+              frosttag: >-
+                {% set ns = namespace(d='') %}
+                {% for t in tage_liste %}
+                  {% set tief = t.templow if t.templow is defined and t.templow is not none else t.temperature %}
+                  {% if ns.d == '' and tief is not none and tief | float(99) <= frost_ab | float(-2) %}
+                    {% set ns.d = (t.datetime | string)[:10] %}
+                  {% endif %}
+                {% endfor %}
+                {{ ns.d }}
+          - if:
+              - condition: template
+                value_template: "{{ frosttag != '' }}"
+            then:
+              - action: input_datetime.set_datetime
+                target:
+                  entity_id: "{{ faellig }}"
+                data:
+                  datetime: "{{ frosttag }} 00:00:00"

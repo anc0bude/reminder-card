@@ -1,0 +1,75 @@
+blueprint:
+  name: Erinnerung aus Kalender
+  description: >-
+    Setzt die Fälligkeit einer Erinnerung auf den nächsten Termin eines Kalenders, zum Beispiel für die Müllabfuhr.
+    Optional nur Termine mit bestimmtem Titel (zum Beispiel `Bioabfall`, `Papier`). Ohne Termin im Suchzeitraum wird „kein Termin“ (31.12.2099 00:00) gesetzt.
+  domain: automation
+  author: anc0bude
+  source_url: https://github.com/anc0bude/reminder-card/blob/main/blueprints/automation/anc0bude/erinnerung_kalender.yaml
+  input:
+    kalender:
+      name: Kalender
+      selector:
+        entity:
+          domain: calendar
+    faellig:
+      name: Helfer „Fällig am“
+      description: Der `input_datetime` der Erinnerung (nur Datum), Name `erinnerung_<id>_faellig`.
+      selector:
+        entity:
+          domain: input_datetime
+    suchtext:
+      name: Titel enthält (optional)
+      description: >-
+        Nur Termine, deren Titel diesen Text enthält (Groß-/Kleinschreibung egal), zum Beispiel `Bioabfall` oder
+        `Gelber Sack`. Leer = alle Termine des Kalenders.
+      selector:
+        text: {}
+      default: ""
+    tage:
+      name: Suchzeitraum (Tage)
+      selector:
+        number:
+          min: 7
+          max: 365
+          mode: box
+      default: 45
+
+mode: single
+
+variables:
+  tage: !input tage
+  suchtext: !input suchtext
+
+triggers:
+  - trigger: time
+    at: "00:10:00"
+  - trigger: time
+    at: "12:10:00"
+  - trigger: homeassistant
+    event: start
+
+actions:
+  - action: calendar.get_events
+    target:
+      entity_id: !input kalender
+    data:
+      start_date_time: "{{ today_at('00:00') }}"
+      duration:
+        days: "{{ tage | int(45) }}"
+    response_variable: kal
+  - variables:
+      eintraege: "{{ (kal.values() | list | first).events }}"
+      naechster: >-
+        {% set ns = namespace(d=[]) %}
+        {% for e in eintraege %}
+          {% if suchtext | string | length == 0 or (suchtext | lower) in ((e.summary | default('')) | lower) %}
+            {% set ns.d = ns.d + [(e.start | string)[:10]] %}
+          {% endif %}
+        {% endfor %}
+        {{ (ns.d | sort | first) if ns.d | length > 0 else '2099-12-31' }}
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: !input faellig
+    data:
+      datetime: "{{ naechster }} 00:00:00"

@@ -1,0 +1,46 @@
+blueprint:
+  name: Erinnerung aus Sensor (Stunden bis zum Wechsel)
+  description: >-
+    Berechnet die Fälligkeit einer Erinnerung aus einem Sensor, der die verbleibenden Stunden meldet, zum Beispiel
+    „Filter replace“ einer Lüftung. Fälligkeit = jetzt + Stunden (Datum und Uhrzeit). Springt der Wert nach einem Wechsel nach oben,
+    verschiebt sich die Fälligkeit von selbst.
+  domain: automation
+  author: anc0bude
+  source_url: https://github.com/anc0bude/reminder-card/blob/main/blueprints/automation/anc0bude/erinnerung_sensor.yaml
+  input:
+    sensor:
+      name: Sensor mit verbleibenden Stunden
+      selector:
+        entity:
+          domain: sensor
+    faellig:
+      name: Helfer „Fällig am“
+      description: Der `input_datetime` der Erinnerung (nur Datum), Name `erinnerung_<id>_faellig`.
+      selector:
+        entity:
+          domain: input_datetime
+
+mode: single
+
+variables:
+  sensor: !input sensor
+  faellig: !input faellig
+
+triggers:
+  - trigger: state
+    entity_id: !input sensor
+  - trigger: time
+    at: "00:05:00"
+  - trigger: homeassistant
+    event: start
+
+conditions:
+  - condition: template
+    value_template: "{{ states(sensor) | is_number }}"
+
+actions:
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: !input faellig
+    data:
+      datetime: "{{ (now() + timedelta(hours=states(sensor) | float(0))).strftime('%Y-%m-%d %H:%M:00') }}"

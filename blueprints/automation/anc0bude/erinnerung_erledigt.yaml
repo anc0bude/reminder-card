@@ -1,0 +1,60 @@
+blueprint:
+  name: Erinnerung erledigt (Knopf in der Meldung)
+  description: >-
+    Reagiert auf den Knopf „Erledigt“ in den Meldungen der Erinnerungen. Bei Erinnerungen mit Intervall
+    (`input_number.erinnerung_<id>_intervall` vorhanden) wird „zuletzt erledigt“ auf jetzt gesetzt und die nächste
+    Fälligkeit um das Intervall verschoben (Einheit Stunden, Tage oder Monate aus
+    `input_select.erinnerung_<id>_intervall_einheit`). Bei allen anderen Erinnerungen wird nur die Wiederholung
+    beendet. Gleiche Regel wie der Knopf in der reminder-card. Monate werden auf den Tag 28 begrenzt.
+  domain: automation
+  author: anc0bude
+  source_url: https://github.com/anc0bude/reminder-card/blob/main/blueprints/automation/anc0bude/erinnerung_erledigt.yaml
+  input: {}
+
+mode: queued
+
+triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+
+conditions:
+  - condition: template
+    value_template: "{{ trigger.event.data.action is defined and trigger.event.data.action.startswith('ERL_') }}"
+
+actions:
+  - variables:
+      rid: "{{ trigger.event.data.action[4:] }}"
+      jetzt: "{{ now().strftime('%Y-%m-%d %H:%M:00') }}"
+      iv_entity: "{{ 'input_number.erinnerung_' ~ rid ~ '_intervall' }}"
+      faellig_entity: "{{ 'input_datetime.erinnerung_' ~ rid ~ '_faellig' }}"
+      menge: "{{ states(iv_entity) | float(0) | int(0) }}"
+      einheit: "{{ states('input_select.erinnerung_' ~ rid ~ '_intervall_einheit') }}"
+      naechste: >-
+        {% set t = now() %}
+        {% if einheit == 'Stunden' %}{{ (t + timedelta(hours=menge)).strftime('%Y-%m-%d %H:%M:00') }}
+        {% elif einheit == 'Tage' %}{{ (t + timedelta(days=menge)).strftime('%Y-%m-%d %H:%M:00') }}
+        {% else %}
+          {% set idx = t.month - 1 + menge %}
+          {{ '%04d-%02d-%02d %s' | format(t.year + idx // 12, idx % 12 + 1, [t.day, 28] | min, t.strftime('%H:%M:00')) }}
+        {% endif %}
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ states[iv_entity] is defined and menge > 0 }}"
+        sequence:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ 'input_datetime.erinnerung_' ~ rid ~ '_zuletzt' }}"
+            data:
+              datetime: "{{ jetzt }}"
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ faellig_entity }}"
+            data:
+              datetime: "{{ naechste | trim }}"
+    default:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: "{{ 'input_datetime.erinnerung_' ~ rid ~ '_gemeldet' }}"
+        data:
+          datetime: "{{ states(faellig_entity) }}"
