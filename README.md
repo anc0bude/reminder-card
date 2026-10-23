@@ -4,6 +4,8 @@ Erinnerungen für Home Assistant: Filter wechseln, Siebe reinigen, Müllabfuhr, 
 
 Reminders for Home Assistant: a dashboard card that lists recurring tasks by due date, a wizard to create them, and blueprints that send notifications to your devices.
 
+<p align="center"><img src="https://raw.githubusercontent.com/anc0bude/reminder-card/main/preview/preview.png" alt="Reminder Card: Liste der Erinnerungen mit Status, Erledigt-Knopf und geöffneten Einstellungen" width="360"></p>
+
 > **Lizenz / License:** PolyForm Noncommercial 1.0.0. Frei für private und andere nicht kommerzielle Nutzung, **nicht für kommerzielle Nutzung**. Siehe [LICENSE](LICENSE). Das ist „source available“, nicht Open Source.
 
 ## Was es kann
