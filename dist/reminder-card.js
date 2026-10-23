@@ -19,6 +19,7 @@ const NO_DATE_YEAR = 2099; // Fälligkeit "kein Termin"
 const HOURS = { Stunden: 1, Tage: 24, Monate: 730.5 };
 const ICONS = ["mdi:bell-outline", "mdi:wrench", "mdi:tools", "mdi:water", "mdi:pipe", "mdi:pump", "mdi:air-filter", "mdi:filter-outline", "mdi:fridge-outline", "mdi:washing-machine", "mdi:dishwasher", "mdi:stove", "mdi:broom", "mdi:trash-can-outline", "mdi:recycle", "mdi:leaf", "mdi:flower", "mdi:radiator", "mdi:thermometer", "mdi:snowflake", "mdi:smoke-detector-variant", "mdi:battery-alert", "mdi:lightbulb-outline", "mdi:home-roof", "mdi:garage", "mdi:car", "mdi:car-wrench", "mdi:key-outline", "mdi:paw", "mdi:medical-bag", "mdi:calendar-check", "mdi:shower"];
 const PRESETS = [
+  { name: "Biomüll", icon: "mdi:leaf", art: "kalender", filter: "Bioabfall", label: "Termin aus Kalender" },
   { name: "Außenwasser abdrehen und entlüften", icon: "mdi:snowflake-alert", art: "frost", label: "Termin nach Frostvorhersage" },
   { name: "Wasserfilter Kühlschrank", icon: "mdi:fridge-outline", n: 6, u: "Monate" },
   { name: "Rauchmelder testen", icon: "mdi:smoke-detector-variant", n: 12, u: "Monate" },
@@ -363,7 +364,7 @@ class ReminderCard extends HTMLElement {
         <div class="btns"><button class="done" data-act="setup-go" ${w.busy ? "disabled" : ""}>Einrichten</button><button data-act="wiz-close">Abbrechen</button></div></div>`;
       return;
     }
-    const pre = PRESETS.map((p, i) => `<option value="${i}"${w.preset === String(i) ? " selected" : ""}>${p.name} (${p.art === "frost" ? p.label : `${p.n} ${p.u}`})</option>`).join("");
+    const pre = PRESETS.map((p, i) => `<option value="${i}"${w.preset === String(i) ? " selected" : ""}>${p.name} (${p.label || `${p.n} ${p.u}`})</option>`).join("");
     const units = (sel) => Object.keys(HOURS).map((o) => `<option${o === sel ? " selected" : ""}>${o}</option>`).join("");
     const sensors = Object.entries(this._hass.states).filter(([e]) => e.startsWith("sensor.")).map(([e]) => `<option value="${e}">`).join("");
     const cals = Object.keys(this._hass.states).filter((e) => e.startsWith("calendar.")).map((e) => `<option value="${e}">`).join("");
@@ -373,22 +374,27 @@ class ReminderCard extends HTMLElement {
       <div class="fld"><label>Symbol</label>${this._iconPicker(w.icon || "mdi:bell-outline", 'class="w-icon"')}<div class="hint">Symbol anklicken oder den Namen eines Material-Design-Symbols eintippen.</div></div>
       <div class="fld"><label>Woher kommt der Termin?</label><select class="w-art">
         <option value="intervall"${w.art === "intervall" ? " selected" : ""}>Wiederkehrend (alle … Stunden, Tage oder Monate)</option>
-        <option value="sensor"${w.art === "sensor" ? " selected" : ""}>Termin aus einem Sensor (Stunden bis zum Wechsel)</option>
-        <option value="kalender"${w.art === "kalender" ? " selected" : ""}>Termin aus einem Kalender</option>
+        <option value="sensor"${w.art === "sensor" ? " selected" : ""}>Termin aus Sensor (Stunden bis zum Wechsel)</option>
+        <option value="kalender"${w.art === "kalender" ? " selected" : ""}>Termin aus Kalender</option>
         <option value="frost"${w.art === "frost" ? " selected" : ""}>Termin nach Frostvorhersage</option></select></div>
       ${w.art === "intervall" ? `
         <div class="fld"><label>Intervall</label><div class="pair"><input type="number" min="1" class="w-n" value="${w.n || 6}"><select class="w-u">${units(w.u || "Monate")}</select></div><div class="hint">Wie oft die Aufgabe ansteht.</div></div>
         <div class="fld"><label>Zuletzt erledigt (leer = jetzt)</label><input type="datetime-local" class="w-z" value="${w.z || ""}"><div class="hint">Daraus wird der erste Termin berechnet.</div></div>` : ""}
       ${w.art === "sensor" ? `<div class="fld"><label>Sensor</label><input type="text" class="w-sensor" value="${w.sensor || ""}" list="w-sensors" placeholder="sensor.…"><datalist id="w-sensors">${sensors}</datalist><div class="hint">Der Sensor muss die verbleibenden Stunden bis zum Termin liefern, zum Beispiel „Filter replace“ einer Lüftung.</div></div>` : ""}
-      ${w.art === "kalender" ? `<div class="fld"><label>Kalender</label><input type="text" class="w-cal" value="${w.cal || ""}" list="w-cals" placeholder="calendar.…"><datalist id="w-cals">${cals}</datalist></div>
+      ${w.art === "kalender" ? `<div class="fld"><label>Kalender</label><input type="text" class="w-cal" value="${w.cal || this._defaultCal()}" list="w-cals" placeholder="calendar.…"><datalist id="w-cals">${cals}</datalist></div>
         <div class="fld"><label>Titel enthält (optional)</label><input type="text" class="w-filter" value="${w.filter || ""}" placeholder="z. B. Bioabfall"><div class="hint">Nur Termine mit diesem Text im Titel zählen. Leer = alle Termine.</div></div>` : ""}
       ${w.art === "frost" ? this._frostFields(w) : ""}
       <details><summary>Erweitert</summary>
-        ${w.art === "frost" ? "" : `<div class="fld"><label>Erste Meldung vorher</label><div class="pair"><input type="number" min="0" class="w-vl" value="${w.vl ?? (w.art === "frost" ? 3 : 7)}"><select class="w-vlu">${units(w.vlu || "Tage")}</select></div></div>`}
+        ${w.art === "frost" ? "" : `<div class="fld"><label>Erste Meldung vorher</label><div class="pair"><input type="number" min="0" class="w-vl" value="${w.vl ?? (w.art === "frost" ? 3 : w.art === "kalender" ? 1 : 7)}"><select class="w-vlu">${units(w.vlu || "Tage")}</select></div></div>`}
         ${w.art === "frost" ? '<div class="hint">Beim Frost wird sofort gemeldet, sobald Frost im Vorhersage-Fenster angesagt ist.</div>' : ""}
-        <div class="fld"><label>Wiederholung nach dem Termin (Tage)</label><div class="pair"><input type="number" min="0" max="60" class="w-rep" value="${w.rep ?? 3}"></div></div></details>
+        <div class="fld"><label>Wiederholung nach dem Termin (Tage)</label><div class="pair"><input type="number" min="0" max="60" class="w-rep" value="${w.rep ?? (w.art === "kalender" ? 0 : 3)}"></div></div></details>
       <div class="msg">${w.msg || ""}</div>
       <div class="btns"><button class="done" data-act="wiz-create" ${w.busy ? "disabled" : ""}>Anlegen</button><button data-act="wiz-close">Abbrechen</button></div></div>`;
+  }
+
+  _defaultCal() {
+    const cals = Object.keys(this._hass.states).filter((e) => e.startsWith("calendar."));
+    return cals.find((e) => /abfall|muell|müll|waste|trash/i.test(e)) || cals[0] || "";
   }
 
   _frostFields(w) {
@@ -659,6 +665,7 @@ class ReminderCard extends HTMLElement {
       if (p) {
         Object.assign(w, { name: p.name, icon: p.icon, art: p.art || "intervall", n: p.n, u: p.u });
         if (p.art === "frost") Object.assign(w, { folge: true, folgename: "Außenwasser wieder aufdrehen", vl: 3 });
+        if (p.art === "kalender") Object.assign(w, { filter: p.filter, vl: 1, vlu: "Tage", rep: 0, cal: w.cal || this._defaultCal() });
       }
       this._w = w;
       this._renderWiz();
