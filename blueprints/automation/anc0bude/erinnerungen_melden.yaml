@@ -138,11 +138,13 @@ triggers:
 
 conditions:
   - condition: template
-    value_template: "{{ due | length > 0 and states('input_boolean.erinnerungen_aktiv') != 'off' }}"
+    value_template: >-
+      {{ (due | from_json if due is string else due) | length > 0
+         and states('input_boolean.erinnerungen_aktiv') != 'off' }}
 
 actions:
   - repeat:
-      for_each: "{{ due }}"
+      for_each: "{{ due | from_json if due is string else due }}"
       sequence:
         - variables:
             item: "{{ repeat.item }}"
