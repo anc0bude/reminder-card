@@ -72,4 +72,4 @@ actions:
     target:
       entity_id: !input faellig
     data:
-      datetime: "{{ naechster }} 00:00:00"
+      datetime: "{{ naechster | trim }} 00:00:00"

@@ -138,10 +138,10 @@ actions:
                 {% if ns.d == '' and alarm | string | length > 0 and is_state(alarm, 'on') %}{{ now().strftime('%Y-%m-%d') }}{% else %}{{ ns.d }}{% endif %}
           - if:
               - condition: template
-                value_template: "{{ frosttag != '' }}"
+                value_template: "{{ (frosttag | trim) != '' }}"
             then:
               - action: input_datetime.set_datetime
                 target:
                   entity_id: "{{ faellig }}"
                 data:
-                  datetime: "{{ frosttag }} 00:00:00"
+                  datetime: "{{ frosttag | trim }} 00:00:00"

@@ -57,4 +57,4 @@ actions:
         target:
           entity_id: "{{ 'input_datetime.erinnerung_' ~ rid ~ '_gemeldet' }}"
         data:
-          datetime: "{{ states(faellig_entity) }}"
+          datetime: "{{ jetzt }}"
