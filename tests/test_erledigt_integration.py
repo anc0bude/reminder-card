@@ -54,3 +54,24 @@ def test_erledigt_bei_stark_ueberfaelliger_wiederholung_meldet_nicht_sofort_erne
 
     nach_knopf = _due_count(reg, now, "frost")
     assert nach_knopf == 0, "nach dem Knopfdruck darf keine weitere Meldung mehr bis zum naechsten echten Ereignis kommen"
+
+
+def test_saison_erledigt_setzt_faellig_2099_und_meldet_nicht_mehr():
+    """Regression 2026-11-13: Saison-Erledigt (Karte/Meldung) = faellig 2099 + gemeldet jetzt."""
+    now = dt.datetime(2026, 11, 13, 9, 0, 0)
+    reg = {
+        "input_datetime.erinnerung_frost_faellig": ("2026-11-07 00:00:00", "Frost"),
+        "input_datetime.erinnerung_frost_gemeldet": ("2026-11-10 08:00:00", None),
+        "input_select.erinnerung_frost_vorlauf_einheit": ("Tage", None),
+        "input_number.erinnerung_frost_vorlauf": ("3", None),
+        "input_number.erinnerung_frost_wiederholung": ("3", None),
+        "input_text.erinnerung_frost_geraete": ("", None),
+        "input_text.erinnerung_frost_meldezeit": ("unknown", None),
+        "input_boolean.erinnerung_frost_aktiv": ("on", None),
+        "input_select.erinnerung_frost_art": ("Saison", None),
+        "input_boolean.erinnerungen_aktiv": ("on", None),
+    }
+    assert _due_count(reg, now, "frost") == 1
+    _druecke_erledigt_ohne_intervall(reg, now, "frost")
+    reg["input_datetime.erinnerung_frost_faellig"] = ("2099-12-31 00:00:00", "Frost")
+    assert _due_count(reg, now + dt.timedelta(days=10), "frost") == 0

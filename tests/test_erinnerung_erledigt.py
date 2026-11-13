@@ -63,3 +63,14 @@ def test_keine_fuehrenden_oder_folgenden_leerzeichen_vor_trim():
         "Falls dieser Assert jetzt fehlschlaegt, wurde die YAML-Einrueckung der Vorlage "
         "geaendert - bitte pruefen, ob 'naechste | trim' im Blueprint noch gebraucht wird."
     )
+
+
+def test_default_zweig_setzt_bei_saison_faellig_auf_2099():
+    # Regression 2026-11-13: Saison-Erledigt liess faellig stehen -> blieb ueberfaellig
+    bp = _bp()
+    default = bp["actions"][1]["choose"][0]["default"] if "default" in bp["actions"][1]["choose"][0] else bp["actions"][1]["default"]
+    wenn = [a for a in default if "if" in a][0]
+    tpl = wenn["if"][0]["value_template"]
+    env, _ = make_env({"input_select.erinnerung_frost_art": ("Saison", None)}, dt.datetime(2026, 11, 13, 9, 0, 0))
+    assert env.from_string(tpl).render(rid="frost") is True
+    assert wenn["then"][0]["data"]["datetime"] == "2099-12-31 00:00:00"
