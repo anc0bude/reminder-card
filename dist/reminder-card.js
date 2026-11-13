@@ -1157,7 +1157,11 @@ class ReminderCard extends HTMLElement {
       return;
     }
     if (b.dataset.act === "done" && r.kind === "saison") {
-      this._hass.callService("input_datetime", "set_datetime", { entity_id: this._ent(r, "input_datetime", "gemeldet"), datetime: this._val(r, "input_datetime", "faellig") });
+      // Saison: erledigt = kein Termin mehr (2099), gemeldet = jetzt (Frost-Blueprint startet diesen Winter nicht neu)
+      const nowS = new Date();
+      nowS.setSeconds(0, 0);
+      this._hass.callService("input_datetime", "set_datetime", { entity_id: this._ent(r, "input_datetime", "gemeldet"), datetime: dts(nowS) });
+      this._hass.callService("input_datetime", "set_datetime", { entity_id: this._ent(r, "input_datetime", "faellig"), datetime: `${NO_DATE_YEAR}-12-31 00:00:00` });
       return;
     }
     if (b.dataset.act === "done") {

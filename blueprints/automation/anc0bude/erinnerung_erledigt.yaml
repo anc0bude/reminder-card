@@ -58,3 +58,12 @@ actions:
           entity_id: "{{ 'input_datetime.erinnerung_' ~ rid ~ '_gemeldet' }}"
         data:
           datetime: "{{ jetzt }}"
+      - if:
+          - condition: template
+            value_template: "{{ is_state('input_select.erinnerung_' ~ rid ~ '_art', 'Saison') }}"
+        then:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "{{ faellig_entity }}"
+            data:
+              datetime: "2099-12-31 00:00:00"
